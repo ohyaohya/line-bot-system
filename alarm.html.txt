@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>警報！</title>
+    <style>
+        /* 這是網頁的樣式設定 */
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            /* 預設背景為紅色 */
+            background-color: #dc3545;
+            /* 套用一個名為 blink 的閃爍動畫，持續 0.8 秒，無限循環 */
+            animation: blink 0.8s linear infinite;
+        }
+        h1 {
+            color: white;
+            font-size: 4rem;
+            font-family: sans-serif;
+        }
+        /* 這裡是閃爍動畫的定義，讓背景在紅色和黃色之間切換 */
+        @keyframes blink {
+            50% { 
+                background-color: #ffc107;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>緊急警報</h1>
+
+    <audio id="alarm-sound" src="https://cdn.pixabay.com/audio/2022/10/16/audio_166b14273c.mp3" autoplay loop></audio>
+
+    <script>
+        // 這段程式碼是為了確保在某些手機上也能順利自動播放
+        document.addEventListener('DOMContentLoaded', () => {
+            const audio = document.getElementById('alarm-sound');
+            audio.play().catch(error => {
+                console.error("音訊自動播放失敗:", error);
+                // 如果失敗，提示使用者點擊螢幕來播放
+                document.body.addEventListener('click', () => {
+                    audio.play();
+                });
+            });
+        });
+    </script>
+</body>
+</html>
