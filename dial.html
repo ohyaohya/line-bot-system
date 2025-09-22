@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>撥打電話確認</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans CJK TC";
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh; margin: 0; background: #f8f9fa;
+    }
+    .card {
+      padding: 24px; border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+      background: #fff; text-align: center;
+    }
+    h2 { margin: 0 0 12px; }
+    p { margin: 0 0 20px; font-size: 16px; }
+    button {
+      margin: 6px; padding: 10px 18px;
+      border-radius: 8px; border: none;
+      cursor: pointer; font-size: 16px;
+    }
+    #yes { background: #198754; color: #fff; }
+    #no { background: #dc3545; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>是否要撥打電話？</h2>
+    <p id="desc">將撥打：<strong id="tel"></strong></p>
+    <div>
+      <button id="yes">撥打</button>
+      <button id="no">取消</button>
+    </div>
+  </div>
+
+  <script>
+    // 2. 在 liff.init() 中執行所有操作，確保 LIFF 已準備就緒
+    liff.init({ liffId: "YOUR_LIFF_ID" }) // YOUR_LIFF_ID 稍後會從後台取得，先隨便填
+      .then(() => {
+        const phoneNumber = '0981766925'; // 您要撥打的電話號碼
+        document.getElementById('tel').textContent = phoneNumber;
+
+        // 撥號功能
+        function dial() {
+          // 嘗試用 tel 協定撥號
+          window.location.href = 'tel:' + phoneNumber;
+          // 3. 觸發撥號後，延遲 500 毫秒自動關閉 LIFF 視窗
+          setTimeout(() => {
+            liff.closeWindow();
+          }, 500);
+        }
+
+        // 綁定「撥打」按鈕事件
+        document.getElementById('yes').addEventListener('click', dial);
+        
+        // 4. 綁定「取消」按鈕事件，直接關閉 LIFF 視窗
+        document.getElementById('no').addEventListener('click', () => {
+          liff.closeWindow();
+        });
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  </script>
+</body>
+</html>
