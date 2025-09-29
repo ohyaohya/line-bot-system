@@ -49,7 +49,7 @@
                 const li = document.createElement('li');
                 const distanceKm = place.distance.toFixed(2);
                 // 【已修正】這裡加上了遺漏的 $ 符號
-                const navLink = `https://www.google.com/maps/search/?api=1&query=$${place.lat},${place.lng}`;
+                const navLink = `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`;
                 li.innerHTML = `<strong>${place.name}</strong><br><small>距離您約 ${distanceKm} 公里</small><a href="${navLink}" target="_blank" rel="noopener">前往導航</a>`;
                 resultsDiv.appendChild(li);
             });
@@ -73,3 +73,4 @@
     }
     main();
 </script>
+
