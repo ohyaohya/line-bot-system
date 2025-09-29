@@ -1,111 +1,75 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>查找附近設施</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <style>
-        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f9; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #333; }
-        .button-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        .searchButton { flex: 1; padding: 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        #searchPolice { background-color: #007bff; }
-        #searchStore { background-color: #28a745; }
-        #status { text-align: center; margin: 20px 0; font-style: italic; color: #6c757d; }
-        #results li { list-style-type: none; padding: 15px; border-bottom: 1px solid #eee; }
-        #results li:last-child { border-bottom: none; }
-        #results a { display: inline-block; padding: 8px 12px; background-color: #17a2b8; color: white; text-decoration: none; border-radius: 5px; float: right; }
-        #results { padding: 0; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>查找附近設施</h2>
-        <div class="button-group">
-            <button id="searchPolice" class="searchButton">找最近的警察局</button>
-            <button id="searchStore" class="searchButton">找最近的便利商店</button>
-        </div>
-        <div id="status">請選擇要搜尋的項目。</div>
-        <ul id="results"></ul>
-    </div>
+<script>
+    // --- 資料庫區 (已更新為台北市地點) ---
+    const policeStations = [
+        { lat: 25.0448, lng: 121.5147, name: '臺北市政府警察局中正第一分局', address: '100台北市中正區公園路15號' },
+        { lat: 25.0335, lng: 121.5430, name: '臺北市政府警察局大安分局', address: '106台北市大安區復興南路二段80號' },
+        { lat: 25.0479, lng: 121.5170, name: '臺北市政府警察局中山分局', address: '104台北市中山區中山北路一段1號' }
+    ];
+    const convenienceStores = [
+        { lat: 25.0494, lng: 121.5172, name: '7-ELEVEN 京站門市', address: '103台北市大同區承德路一段1號B2' },
+        { lat: 25.0337, lng: 121.5644, name: '全家便利商店 101店', address: '110台北市信義區市府路45號B1' },
+        { lat: 25.0441, lng: 121.5222, name: '萊爾富 北市捷運店', address: '100台北市中正區忠孝西路一段49號B1' }
+    ];
 
-    <script>
-        // --- 資料庫區 (已更新為台北市地點) ---
-        const policeStations = [
-            { lat: 25.0448, lng: 121.5147, name: '臺北市政府警察局中正第一分局', address: '100台北市中正區公園路15號' },
-            { lat: 25.0335, lng: 121.5430, name: '臺北市政府警察局大安分局', address: '106台北市大安區復興南路二段80號' },
-            { lat: 25.0479, lng: 121.5170, name: '臺北市政府警察局中山分局', address: '104台北市中山區中山北路一段1號' }
-        ];
-        const convenienceStores = [
-            { lat: 25.0494, lng: 121.5172, name: '7-ELEVEN 京站門市', address: '103台北市大同區承德路一段1號B2' },
-            { lat: 25.0337, lng: 121.5644, name: '全家便利商店 101店', address: '110台北市信義區市府路45號B1' },
-            { lat: 25.0441, lng: 121.5222, name: '萊爾富 北市捷運店', address: '100台北市中正區忠孝西路一段49號B1' }
-        ];
-
-        // 複雜的數學公式，用來計算距離
-        function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2); const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); return R * c;
-        }
-
-// 請複製這個完整的函式，取代掉您檔案中舊的同名函式
-async function findNearby(dataType) {
-    const statusDiv = document.getElementById('status');
-    const resultsDiv = document.getElementById('results');
-    statusDiv.textContent = '正在取得您的位置...';
-    resultsDiv.innerHTML = '';
-
-    let targetLocations = [];
-    if (dataType === 'police') {
-        targetLocations = policeStations;
-    } else if (dataType === 'store') {
-        targetLocations = convenienceStores;
+    // 複雜的數學公式，用來計算距離
+    function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2); const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); return R * c;
     }
 
-    try {
-        const location = await liff.getLocation();
-        const userLat = location.latitude;
-        const userLng = location.longitude;
-        
-        statusDiv.textContent = '計算距離中...';
+    // 主要的搜尋功能函式
+    async function findNearby(dataType) {
+        const statusDiv = document.getElementById('status');
+        const resultsDiv = document.getElementById('results');
+        statusDiv.textContent = '正在取得您的位置...';
+        resultsDiv.innerHTML = '';
 
-        const locationsWithDistance = targetLocations.map(place => {
-            const distance = getDistance(userLat, userLng, place.lat, place.lng);
-            return { ...place, distance };
-        });
-
-        locationsWithDistance.sort((a, b) => a.distance - b.distance);
-        
-        statusDiv.textContent = `搜尋完成！以下是離您最近的${dataType === 'police' ? '警察局' : '便利商店'}：`;
-        locationsWithDistance.forEach(place => {
-            const li = document.createElement('li');
-            const distanceKm = place.distance.toFixed(2);
-            // 【已修正】使用標準的 Google Maps 搜尋網址
-            const navLink = `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`;
-            li.innerHTML = `<strong>${place.name}</strong><br><small>距離您約 ${distanceKm} 公里</small><a href="${navLink}" target="_blank" rel="noopener">前往導航</a>`;
-            resultsDiv.appendChild(li);
-        });
-
-    } catch (error) {
-        console.error(error);
-        statusDiv.textContent = '無法取得您的位置。請確認您已授權 LINE 分享位置資訊。';
-    }
-}
-
-        // LIFF 初始化
-        async function main() {
-            await liff.init({ liffId: "2008106671-RMxabbaV" }); // 我們會在後續步驟替換成真實 ID
-            if (!liff.isLoggedIn()) {
-                liff.login();
-            } else {
-                document.getElementById('searchPolice').addEventListener('click', () => findNearby('police'));
-                document.getElementById('searchStore').addEventListener('click', () => findNearby('store'));
-            }
+        let targetLocations = [];
+        if (dataType === 'police') {
+            targetLocations = policeStations;
+        } else if (dataType === 'store') {
+            targetLocations = convenienceStores;
         }
-        main();
-    </script>
-</body>
 
-</html>
+        try {
+            const location = await liff.getLocation();
+            const userLat = location.latitude;
+            const userLng = location.longitude;
+            
+            statusDiv.textContent = '計算距離中...';
 
+            const locationsWithDistance = targetLocations.map(place => {
+                const distance = getDistance(userLat, userLng, place.lat, place.lng);
+                return { ...place, distance };
+            });
+
+            locationsWithDistance.sort((a, b) => a.distance - b.distance);
+            
+            statusDiv.textContent = `搜尋完成！以下是離您最近的${dataType === 'police' ? '警察局' : '便利商店'}：`;
+            locationsWithDistance.forEach(place => {
+                const li = document.createElement('li');
+                const distanceKm = place.distance.toFixed(2);
+                // 【已修正】這裡加上了遺漏的 $ 符號
+                const navLink = `https://www.google.com/maps/search/?api=1&query=$${place.lat},${place.lng}`;
+                li.innerHTML = `<strong>${place.name}</strong><br><small>距離您約 ${distanceKm} 公里</small><a href="${navLink}" target="_blank" rel="noopener">前往導航</a>`;
+                resultsDiv.appendChild(li);
+            });
+
+        } catch (error) {
+            console.error(error);
+            statusDiv.textContent = '無法取得您的位置。請確認您已授權 LINE 分享位置資訊。';
+        }
+    }
+
+    // LIFF 初始化
+    async function main() {
+        // 【請確認】這裡的 LIFF ID 是您為 nearby.html 建立的那個
+        await liff.init({ liffId: "2008106671-RMxabbaV" }); 
+        if (!liff.isLoggedIn()) {
+            liff.login();
+        } else {
+            document.getElementById('searchPolice').addEventListener('click', () => findNearby('police'));
+            document.getElementById('searchStore').addEventListener('click', () => findNearby('store'));
+        }
+    }
+    main();
+</script>
