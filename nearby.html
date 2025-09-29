@@ -45,19 +45,29 @@
             { lat: 25.0441, lng: 121.5222, name: '萊爾富 北市捷運店', address: '100台北市中正區忠孝西路一段49號B1' }
         ];
 
-        // 計算距離的函式 (保持不變)
+        let map;
+        let infowindow;
+
+        // 這是 Google Maps API 載入完成後，會自動呼叫的函式
+        function initMap() {
+            const mapCenter = { lat: 25.0479, lng: 121.5170 };
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 14,
+                center: mapCenter,
+            });
+            infowindow = new google.maps.InfoWindow();
+        }
+
         function getDistance(lat1, lon1, lat2, lon2) {
             const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2); const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); return R * c;
         }
 
-        // 搜尋功能主函式 (已優化)
         async function findNearby(dataType) {
             const statusDiv = document.getElementById('status');
             const resultsDiv = document.getElementById('results');
             const policeButton = document.getElementById('searchPolice');
             const storeButton = document.getElementById('searchStore');
-
-            // 【優化1】開始搜尋時，禁用按鈕防止重複點擊
+            
             policeButton.disabled = true;
             storeButton.disabled = true;
             statusDiv.textContent = '正在取得您的位置...';
@@ -82,32 +92,19 @@
                 locationsWithDistance.forEach(place => {
                     const li = document.createElement('li');
                     const distanceKm = place.distance.toFixed(2);
-                    // 【修正2】使用最穩定、通用的 Google Maps 搜尋網址格式
                     const navLink = `https://www.google.com/maps?q=${place.lat},${place.lng}`;
-                    li.innerHTML = `
-                        <div>
-                            <strong>${place.name}</strong><br>
-                            <small>距離您約 ${distanceKm} 公里</small>
-                        </div>
-                        <a href="${navLink}" target="_blank" rel="noopener">前往導航</a>`;
+                    li.innerHTML = `<div><strong>${place.name}</strong><br><small>距離您約 ${distanceKm} 公里</small></div><a href="${navLink}" target="_blank" rel="noopener">前往導航</a>`;
                     resultsDiv.appendChild(li);
                 });
 
             } catch (error) {
                 console.error(error);
-                // 【優化3】提供更詳細的錯誤原因
                 switch (error.code) {
-                    case "PERMISSION_DENIED":
-                        statusDiv.textContent = '您拒絕了位置授權。請重設權限後再試一次。';
-                        break;
-                    case "TIMEOUT":
-                        statusDiv.textContent = '定位超時，請確認您的 GPS訊號良好。';
-                        break;
-                    default:
-                        statusDiv.textContent = '無法取得您的位置，請確認已授權並開啟手機定位。';
+                    case "PERMISSION_DENIED": statusDiv.textContent = '您拒絕了位置授權。請重設權限後再試一次。'; break;
+                    case "TIMEOUT": statusDiv.textContent = '定位超時，請確認您的 GPS訊號良好。'; break;
+                    default: statusDiv.textContent = '無法取得您的位置，請確認已授權並開啟手機定位。';
                 }
             } finally {
-                // 【優化1】無論成功或失敗，最後都重新啟用按鈕
                 policeButton.disabled = false;
                 storeButton.disabled = false;
             }
@@ -130,5 +127,7 @@
         }
         main();
     </script>
+    
+    <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBTRKrO8LFhHARu7rHAXzpXe7DfM0Ypn1g&callback=initMap"></script>
 </body>
 </html>
