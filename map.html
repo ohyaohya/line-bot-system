@@ -4,17 +4,26 @@
     <title>多地點互動地圖</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        html, body, #map { height: 100%; margin: 0; padding: 0; }
+        /* 讓地圖填滿整個畫面 */
+        html, body, #map {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
     </style>
 </head>
 <body>
     <div id="map"></div>
+
     <script>
+        // === 您可以在這裡新增或修改您的地點清單 ===
         const locations = [
             { lat: 24.957231, lng: 121.224853, name: '桃園市政府警察局中壢分局', address: '320桃園市中壢區普義路135號' },
             { lat: 24.964208, lng: 121.225964, name: '中壢派出所', address: '320桃園市中壢區延平路562號' },
             { lat: 24.954752, lng: 121.236681, name: '普仁派出所', address: '320桃園市中壢區中山東路二段308號' }
         ];
+
+        // 初始化地圖的函式
         function initMap() {
             const mapCenter = { lat: 24.957231, lng: 121.224853 };
             const map = new google.maps.Map(document.getElementById("map"), {
@@ -36,8 +45,7 @@
             });
         }
     </script>
-    <script async src="https://googleusercontent.com/maps/api/js?key=AIzaSyBTRKrO8LFhHARu7rHAXzpXe7DfM0Ypn1g&callback=initMap"></script>
-</body>
+    
+    <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBTRKrO8LFhHARu7rHAXzpXe7DfM0Ypn1g&callback=initMap"></script>
+    </body>
 </html>
-
-
