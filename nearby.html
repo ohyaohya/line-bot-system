@@ -1,98 +1,133 @@
-<script>
-    async function findNearby(dataType) {
-        const statusDiv = document.getElementById('status');
-        const resultsDiv = document.getElementById('results');
-        const policeButton = document.getElementById('searchPolice');
-        const storeButton = document.getElementById('searchStore');
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>查找附近設施</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; }
+        .button-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        .searchButton { flex: 1; padding: 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; }
+        .searchButton:disabled { background-color: #aaa; cursor: not-allowed; }
+        #searchPolice { background-color: #007bff; }
+        #searchStore { background-color: #28a745; }
+        #status { text-align: center; margin: 20px 0; font-style: italic; color: #6c757d; }
+        #results li { list-style-type: none; padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        #results li:last-child { border-bottom: none; }
+        #results .info { margin-right: 10px; }
+        #results a { display: inline-block; padding: 8px 12px; background-color: #17a2b8; color: white; text-decoration: none; border-radius: 5px; white-space: nowrap; }
+        #results { padding: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>查找附近設施</h2>
+        <div class="button-group">
+            <button id="searchPolice" class="searchButton">找最近的警察局</button>
+            <button id="searchStore" class="searchButton">找最近的便利商店</button>
+        </div>
+        <div id="status">請選擇要搜尋的項目。</div>
+        <ul id="results"></ul>
+    </div>
 
-        policeButton.disabled = true;
-        storeButton.disabled = true;
-        statusDiv.textContent = '正在取得您的位置...';
-        resultsDiv.innerHTML = '';
+    <script>
+        const policeStations = [
+            { lat: 25.0448, lng: 121.5147, name: '臺北市政府警察局中正第一分局', address: '100台北市中正區公園路15號' },
+            { lat: 25.0335, lng: 121.5430, name: '臺北市政府警察局大安分局', address: '106台北市大安區復興南路二段80號' },
+            { lat: 25.0479, lng: 121.5170, name: '臺北市政府警察局中山分局', address: '104台北市中山區中山北路一段1號' }
+        ];
+        const convenienceStores = [
+            { lat: 25.0494, lng: 121.5172, name: '7-ELEVEN 京站門市', address: '103台北市大同區承德路一段1號B2' },
+            { lat: 25.0337, lng: 121.5644, name: '全家便利商店 101店', address: '110台北市信義區市府路45號B1' },
+            { lat: 25.0441, lng: 121.5222, name: '萊爾富 北市捷運店', address: '100台北市中正區忠孝西路一段49號B1' }
+        ];
 
-        let userLat, userLng;
+        let map;
+        let infowindow;
 
-        try {
-            if (liff.isInClient()) {
-                // 在 LINE 裡試著用 LIFF API
-                const loc = await liff.getLocation();
-                if (loc) {
-                    userLat = loc.latitude;
-                    userLng = loc.longitude;
-                }
-            }
-        } catch (e) {
-            console.warn("liff.getLocation 失敗，改用 navigator.geolocation");
+        // Google Maps API 載入完成後，會自動呼叫這個函式來畫出初始地圖
+        function initMap() {
+            const mapCenter = { lat: 25.0479, lng: 121.5170 }; // 預設中心點 (台北市中心)
+            map = new google.maps.Map(document.getElementById("map"), { // 注意：此範本沒有 map div，故不會顯示地圖
+                zoom: 14,
+                center: mapCenter,
+            });
+            infowindow = new google.maps.InfoWindow();
         }
 
-        if (!userLat || !userLng) {
-            // fallback 到瀏覽器 Geolocation
-            if (!navigator.geolocation) {
-                statusDiv.textContent = '您的瀏覽器不支援定位功能。';
+        // 計算距離的函式
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2); const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); return R * c;
+        }
+
+        // 主要的搜尋功能函式
+        async function findNearby(dataType) {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            const policeButton = document.getElementById('searchPolice');
+            const storeButton = document.getElementById('searchStore');
+            
+            policeButton.disabled = true;
+            storeButton.disabled = true;
+            statusDiv.textContent = '正在取得您的位置...';
+            resultsDiv.innerHTML = '';
+            
+            let targetLocations = (dataType === 'police') ? policeStations : convenienceStores;
+
+            try {
+                const location = await liff.getLocation();
+                const userLat = location.latitude;
+                const userLng = location.longitude;
+                statusDiv.textContent = '計算距離中...';
+
+                const locationsWithDistance = targetLocations.map(place => {
+                    const distance = getDistance(userLat, userLng, place.lat, place.lng);
+                    return { ...place, distance };
+                });
+
+                locationsWithDistance.sort((a, b) => a.distance - b.distance);
+                
+                statusDiv.textContent = `搜尋完成！以下是離您最近的${dataType === 'police' ? '警察局' : '便利商店'}：`;
+                locationsWithDistance.forEach(place => {
+                    const li = document.createElement('li');
+                    const distanceKm = place.distance.toFixed(2);
+                    const navLink = `https://www.google.com/maps?q=${place.lat},${place.lng}`;
+                    li.innerHTML = `<div class="info"><strong>${place.name}</strong><br><small>距離您約 ${distanceKm} 公里</small></div><a href="${navLink}" target="_blank" rel="noopener">前往導航</a>`;
+                    resultsDiv.appendChild(li);
+                });
+
+            } catch (error) {
+                console.error(error);
+                switch (error.code) {
+                    case "PERMISSION_DENIED": statusDiv.textContent = '您拒絕了位置授權。請重設權限後再試一次。'; break;
+                    case "TIMEOUT": statusDiv.textContent = '定位超時，請確認您的 GPS訊號良好。'; break;
+                    default: statusDiv.textContent = '無法取得您的位置，請確認已授權並開啟手機定位。';
+                }
+            } finally {
                 policeButton.disabled = false;
                 storeButton.disabled = false;
-                return;
             }
-
-            await new Promise((resolve) => {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        userLat = pos.coords.latitude;
-                        userLng = pos.coords.longitude;
-                        resolve();
-                    },
-                    (err) => {
-                        console.error("Geolocation error:", err);
-                        statusDiv.textContent = "無法取得您的位置，請檢查權限或網路。";
-                        policeButton.disabled = false;
-                        storeButton.disabled = false;
-                        resolve();
-                    }
-                );
-            });
         }
 
-        if (!userLat || !userLng) return;
-
-        // 後續計算距離 & 顯示結果（保留你的原程式）
-        statusDiv.textContent = '計算距離中...';
-        let targetLocations = (dataType === 'police') ? policeStations : convenienceStores;
-        const locationsWithDistance = targetLocations.map(place => {
-            const distance = getDistance(userLat, userLng, place.lat, place.lng);
-            return { ...place, distance };
-        });
-        locationsWithDistance.sort((a, b) => a.distance - b.distance);
-
-        statusDiv.textContent = `搜尋完成！以下是離您最近的${dataType === 'police' ? '警察局' : '便利商店'}：`;
-        locationsWithDistance.forEach(place => {
-            const li = document.createElement('li');
-            const distanceKm = place.distance.toFixed(2);
-            const navLink = `https://www.google.com/maps?q=${place.lat},${place.lng}`;
-            li.innerHTML = `<div><strong>${place.name}</strong><br><small>距離您約 ${distanceKm} 公里</small></div><a href="${navLink}" target="_blank" rel="noopener">前往導航</a>`;
-            resultsDiv.appendChild(li);
-        });
-
-        policeButton.disabled = false;
-        storeButton.disabled = false;
-    }
-
-    async function main() {
-        try {
-            await liff.init({ liffId: "2008106671-RMxabbaV" });
-
-            // 不論是否登入，都先綁定按鈕
-            document.getElementById('searchPolice').addEventListener('click', () => findNearby('police'));
-            document.getElementById('searchStore').addEventListener('click', () => findNearby('store'));
-
-            // 如果在 LINE 裡但沒登入，觸發登入
-            if (!liff.isLoggedIn() && liff.isInClient()) {
-                liff.login();
+        // LIFF 初始化
+        async function main() {
+            try {
+                await liff.init({ liffId: "2008106671-RMxabbaV" });
+                if (liff.isLoggedIn()) {
+                    document.getElementById('searchPolice').addEventListener('click', () => findNearby('police'));
+                    document.getElementById('searchStore').addEventListener('click', () => findNearby('store'));
+                }
+            } catch (err) {
+                console.error('LIFF Initialization failed', err);
+                document.getElementById('status').textContent = 'LIFF 初始化失敗，請確認 LIFF ID 是否正確。';
             }
-
-        } catch (err) {
-            console.error('LIFF 初始化失敗', err);
-            document.getElementById('status').textContent = 'LIFF 初始化失敗。';
         }
-    }
-    main();
-</script>
+        main();
+    </script>
+    
+    <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBTRKrO8LFhHARu7rHAXzpXe7DfM0Ypn1g&callback=initMap"></script>
+</body>
+</html>
