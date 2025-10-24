@@ -83,7 +83,8 @@
                             throw new Error("後端 API 位址尚未設定");
                         }
 
-                        console.log("正在呼叫後端 API:", apiUrl); // 在 Console 印出呼叫的網址
+                        console.log("正在呼叫後端 API:", apiUrl);
+                        alert("準備呼叫的 API 網址:\n" + apiUrl); // 在 Console 印出呼叫的網址
 
                         // 使用 fetch 指令發送 GET 請求到後端
                         const response = await fetch(apiUrl);
