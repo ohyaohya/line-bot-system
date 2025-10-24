@@ -75,39 +75,96 @@
 
                     // --- 2. 呼叫我們自己的後端 API ---
                     try {
-// 【新】使用 URLSearchParams 來更安全地組合參數
-const params = new URLSearchParams({
-    lat: userLat,
-    lng: userLng,
-    type: dataType
-});
+// 【這是最終修正版的 findNearby 函式】
+async function findNearby(dataType) {
+    const statusDiv = document.getElementById('status');
+    const resultsDiv = document.getElementById('results');
+    const policeButton = document.getElementById('searchPolice');
+    const storeButton = document.getElementById('searchStore');
+    
+    policeButton.disabled = true; storeButton.disabled = true;
+    statusDiv.textContent = '正在取得您的位置...';
+    resultsDiv.innerHTML = '';
+    
+    if (!navigator.geolocation) {
+        statusDiv.textContent = '您的瀏覽器不支援定位功能。';
+        policeButton.disabled = false; storeButton.disabled = false; return;
+    }
 
-// 組合最終的 URL 字串
-const apiUrl = `${BACKEND_API_BASE_URL}/api/nearby?${params.toString()}`;
+    navigator.geolocation.getCurrentPosition(
+        async (position) => { // 外層 try 的開始點不變
+            const userLat = position.coords.latitude; 
+            const userLng = position.coords.longitude;
+            
+            try { // 【【這是處理 fetch 呼叫的 try 區塊】】
+                statusDiv.textContent = '定位成功，正在向後端請求資料...'; // 將狀態更新移到這裡
 
-// 【重要】如果 BACKEND_API_BASE_URL 尚未設定，先提示錯誤
-if (!BACKEND_API_BASE_URL) {
-    throw new Error("後端 API 位址尚未設定");
+                // --- 組合 URL ---
+                const params = new URLSearchParams({ lat: userLat, lng: userLng, type: dataType });
+                const apiUrl = `${BACKEND_API_BASE_URL}/api/nearby?${params.toString()}`;
+                
+                if (!BACKEND_API_BASE_URL) throw new Error("後端 API 位址尚未設定");
+
+                console.log("正在呼叫後端 API:", apiUrl); 
+                
+                // --- 執行 fetch ---
+                const response = await fetch(new URL(apiUrl)); // 使用 URL 物件
+
+                // --- 【【關鍵修正】】處理 response 的程式碼現在 *必須* 放在這個 try 區塊內 ---
+                if (!response.ok) {
+                    let errorData = { message: `後端伺服器錯誤 (HTTP ${response.status})`};
+                    try { errorData = await response.json(); } catch (e) { /*忽略*/ }
+                    throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+                }
+                
+                const nearestPlaces = await response.json();
+                console.log("收到後端回應:", nearestPlaces); 
+
+                // --- 顯示結果 (也在 try 內部) ---
+                if (nearestPlaces && nearestPlaces.length > 0) {
+                    statusDiv.textContent = `搜尋完成！以下是離您最近的${dataType === 'police' ? '警察局' : '便利商店'}：`;
+                    nearestPlaces.forEach(place => {
+                        const li = document.createElement('li');
+                        const distanceKm = place.distance; 
+                        const navLink = `https://www.google.com/maps?q=${place.lat},${place.lng}`;
+                        li.innerHTML = `<div class="info"><strong>${place.name}</strong><br><small>${place.address || ''}</small><br><small>距離您約 ${distanceKm} 公里</small></div><a href="${navLink}" target="_blank" rel="noopener">前往導航</a>`;
+                        resultsDiv.appendChild(li);
+                    });
+                } else {
+                    statusDiv.textContent = '在您附近未找到相關地點。';
+                }
+                // --- 處理 response 結束 ---
+
+            } catch (error) { // 【這是處理 fetch 呼叫失敗 或 後續處理失敗 的 catch】
+                console.error('查詢過程中發生錯誤:', error);
+                // 嘗試顯示更友善的錯誤訊息
+                let displayError = '查詢時發生未知錯誤。';
+                if (error instanceof TypeError && error.message.includes('Failed to construct \'URL\'')) {
+                     displayError = '後端 API 位址格式錯誤。';
+                } else if (error instanceof TypeError && error.message.includes('fetch')) {
+                     displayError = '無法連接到後端伺服器，請檢查網路或伺服器狀態。';
+                } else {
+                     displayError = `查詢時發生錯誤：${error.message}`;
+                }
+                 statusDiv.textContent = displayError;
+
+            } finally { // 【無論成功或失敗，最後都啟用按鈕】
+                policeButton.disabled = false;
+                storeButton.disabled = false;
+            }
+        },
+        // 定位失敗時執行的函式 (保持不變)
+        (error) => {
+            console.error('Geolocation error:', error);
+            let errorMessage = '無法取得您的位置。';
+            if (error.code === 1) errorMessage = '您拒絕了位置授權。請重設權限後再試一次。';
+            if (error.code === 2) errorMessage = '無法根據您的網路或GPS判斷位置。';
+            if (error.code === 3) errorMessage = '定位超時，請確認您的 GPS訊號良好。';
+            statusDiv.textContent = errorMessage;
+            policeButton.disabled = false; storeButton.disabled = false;
+        }
+    );
 }
-
-alert("準備呼叫的 API 網址:\n" + apiUrl); // 保留 alert 方便觀察
-console.log("正在呼叫後端 API:", apiUrl);
-
-// 【新】嘗試使用 URL 物件來進行 fetch，可能更穩定
-try {
-    const urlObject = new URL(apiUrl); 
-    const response = await fetch(urlObject); // 改用 URL 物件來 fetch
-// --- 後續的 response.ok 檢查 和 await response.json() 保持不變 ---
-
-// ... (原本 try 區塊剩餘的程式碼) ...
-
-} catch (fetchError) {
-    // 如果 fetch 本身就失敗 (例如 URL 格式錯誤)，在這裡處理
-     console.error('Fetch API 呼叫失敗:', fetchError);
-     throw new Error(`無法呼叫後端 API: ${fetchError.message}`); // 拋出新的錯誤，會被外層 catch 接住
-}
-
-// --- 【注意】原本的 const response = await fetch(apiUrl); 要刪掉 ---
 
                         // 檢查後端是否回應成功 (狀態碼 200-299)
                         if (!response.ok) {
