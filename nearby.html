@@ -35,22 +35,14 @@
     </div>
 
     <script>
-        // --- 【【【重大修改！！！】】】 ---
-        // 不再需要寫死的資料庫了！
-        // const policeStations = [...];
-        // const convenienceStores = [...];
+        // --- 後端 API 位址 ---
+        // 請確保這裡填寫的是您 ngrok 正確的 https 網址
+        const BACKEND_API_BASE_URL = "https://jayceon-lawlike-unallegedly.ngrok-free.dev"; 
 
-        // --- 【【【新增！！！】】】 ---
-        // 這裡需要填入您後端伺服器實際運行的公開網址
-        // 在本機測試時，需要用您電腦的區域網路 IP 位址
-        // 例如： const BACKEND_API_BASE_URL = "http://192.168.1.100:5001"; 
-        // 如果您不知道 IP，可以暫時留空，我們先用其他方式測試
-        const BACKEND_API_BASE_URL = "https://jayceon-lawlike-unallegedly.ngrok-free.dev"; // 【【請注意！稍後需要修改這裡】】
+        // --- 計算距離函式 (保留備用) ---
+        function getDistance(lat1, lon1, lat2, lon2) { const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2); const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); return R * c; }
 
-        // 計算距離的函式 (不再需要在前端計算，但保留備用)
-        function getDistance(lat1, lon1, lat2, lon2) { /* ... */ }
-
-        // 主要的搜尋功能函式 (已大幅修改)
+        // --- 主要搜尋功能函式 (這是唯一的 findNearby 定義) ---
         async function findNearby(dataType) {
             const statusDiv = document.getElementById('status');
             const resultsDiv = document.getElementById('results');
@@ -61,154 +53,67 @@
             statusDiv.textContent = '正在取得您的位置...';
             resultsDiv.innerHTML = '';
 
-            // --- 1. 取得使用者 GPS 位置 (使用標準網頁定位) ---
             if (!navigator.geolocation) {
                 statusDiv.textContent = '您的瀏覽器不支援定位功能。';
                 policeButton.disabled = false; storeButton.disabled = false; return;
             }
 
             navigator.geolocation.getCurrentPosition(
-                async (position) => { // 【注意】這裡改成了 async 函式
+                async (position) => { // 定位成功的回呼函式
                     const userLat = position.coords.latitude;
                     const userLng = position.coords.longitude;
-                    statusDiv.textContent = '定位成功，正在向後端請求資料...';
+                    
+                    try { // 開始呼叫後端 API
+                        statusDiv.textContent = '定位成功，正在向後端請求資料...';
 
-                    // --- 2. 呼叫我們自己的後端 API ---
-                    try {
-// 【這是最終修正版的 findNearby 函式】
-async function findNearby(dataType) {
-    const statusDiv = document.getElementById('status');
-    const resultsDiv = document.getElementById('results');
-    const policeButton = document.getElementById('searchPolice');
-    const storeButton = document.getElementById('searchStore');
-    
-    policeButton.disabled = true; storeButton.disabled = true;
-    statusDiv.textContent = '正在取得您的位置...';
-    resultsDiv.innerHTML = '';
-    
-    if (!navigator.geolocation) {
-        statusDiv.textContent = '您的瀏覽器不支援定位功能。';
-        policeButton.disabled = false; storeButton.disabled = false; return;
-    }
+                        const params = new URLSearchParams({ lat: userLat, lng: userLng, type: dataType });
+                        if (!BACKEND_API_BASE_URL) throw new Error("後端 API 位址尚未設定");
+                        const apiUrl = `${BACKEND_API_BASE_URL}/api/nearby?${params.toString()}`;
 
-    navigator.geolocation.getCurrentPosition(
-        async (position) => { // 外層 try 的開始點不變
-            const userLat = position.coords.latitude; 
-            const userLng = position.coords.longitude;
-            
-            try { // 【【這是處理 fetch 呼叫的 try 區塊】】
-                statusDiv.textContent = '定位成功，正在向後端請求資料...'; // 將狀態更新移到這裡
+                        console.log("正在呼叫後端 API:", apiUrl);
 
-                // --- 組合 URL ---
-                const params = new URLSearchParams({ lat: userLat, lng: userLng, type: dataType });
-                const apiUrl = `${BACKEND_API_BASE_URL}/api/nearby?${params.toString()}`;
-                
-                if (!BACKEND_API_BASE_URL) throw new Error("後端 API 位址尚未設定");
+                        const response = await fetch(new URL(apiUrl)); 
 
-                console.log("正在呼叫後端 API:", apiUrl); 
-                
-                // --- 執行 fetch ---
-                const response = await fetch(new URL(apiUrl)); // 使用 URL 物件
-
-                // --- 【【關鍵修正】】處理 response 的程式碼現在 *必須* 放在這個 try 區塊內 ---
-                if (!response.ok) {
-                    let errorData = { message: `後端伺服器錯誤 (HTTP ${response.status})`};
-                    try { errorData = await response.json(); } catch (e) { /*忽略*/ }
-                    throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
-                }
-                
-                const nearestPlaces = await response.json();
-                console.log("收到後端回應:", nearestPlaces); 
-
-                // --- 顯示結果 (也在 try 內部) ---
-                if (nearestPlaces && nearestPlaces.length > 0) {
-                    statusDiv.textContent = `搜尋完成！以下是離您最近的${dataType === 'police' ? '警察局' : '便利商店'}：`;
-                    nearestPlaces.forEach(place => {
-                        const li = document.createElement('li');
-                        const distanceKm = place.distance; 
-                        const navLink = `https://www.google.com/maps?q=${place.lat},${place.lng}`;
-                        li.innerHTML = `<div class="info"><strong>${place.name}</strong><br><small>${place.address || ''}</small><br><small>距離您約 ${distanceKm} 公里</small></div><a href="${navLink}" target="_blank" rel="noopener">前往導航</a>`;
-                        resultsDiv.appendChild(li);
-                    });
-                } else {
-                    statusDiv.textContent = '在您附近未找到相關地點。';
-                }
-                // --- 處理 response 結束 ---
-
-            } catch (error) { // 【這是處理 fetch 呼叫失敗 或 後續處理失敗 的 catch】
-                console.error('查詢過程中發生錯誤:', error);
-                // 嘗試顯示更友善的錯誤訊息
-                let displayError = '查詢時發生未知錯誤。';
-                if (error instanceof TypeError && error.message.includes('Failed to construct \'URL\'')) {
-                     displayError = '後端 API 位址格式錯誤。';
-                } else if (error instanceof TypeError && error.message.includes('fetch')) {
-                     displayError = '無法連接到後端伺服器，請檢查網路或伺服器狀態。';
-                } else {
-                     displayError = `查詢時發生錯誤：${error.message}`;
-                }
-                 statusDiv.textContent = displayError;
-
-            } finally { // 【無論成功或失敗，最後都啟用按鈕】
-                policeButton.disabled = false;
-                storeButton.disabled = false;
-            }
-        },
-        // 定位失敗時執行的函式 (保持不變)
-        (error) => {
-            console.error('Geolocation error:', error);
-            let errorMessage = '無法取得您的位置。';
-            if (error.code === 1) errorMessage = '您拒絕了位置授權。請重設權限後再試一次。';
-            if (error.code === 2) errorMessage = '無法根據您的網路或GPS判斷位置。';
-            if (error.code === 3) errorMessage = '定位超時，請確認您的 GPS訊號良好。';
-            statusDiv.textContent = errorMessage;
-            policeButton.disabled = false; storeButton.disabled = false;
-        }
-    );
-}
-
-                        // 檢查後端是否回應成功 (狀態碼 200-299)
                         if (!response.ok) {
-                            // 如果後端回傳錯誤，嘗試讀取錯誤訊息
                             let errorData = { message: `後端伺服器錯誤 (HTTP ${response.status})`};
-                            try { errorData = await response.json(); } catch (e) { /*忽略解析錯誤*/ }
+                            try { errorData = await response.json(); } catch (e) { /*忽略*/ }
                             throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
                         }
 
-                        // 解析後端回傳的 JSON 結果 (最近的 5 筆地點)
                         const nearestPlaces = await response.json();
-                        console.log("收到後端回應:", nearestPlaces); // 在 Console 印出結果
+                        console.log("收到後端回應:", nearestPlaces);
 
-                        // --- 3. 將後端回傳的結果顯示在畫面上 ---
                         if (nearestPlaces && nearestPlaces.length > 0) {
                             statusDiv.textContent = `搜尋完成！以下是離您最近的${dataType === 'police' ? '警察局' : '便利商店'}：`;
                             nearestPlaces.forEach(place => {
                                 const li = document.createElement('li');
-                                const distanceKm = place.distance; // 後端已經算好距離了
+                                const distanceKm = place.distance;
                                 const navLink = `https://www.google.com/maps?q=${place.lat},${place.lng}`;
-                                li.innerHTML = `
-                                    <div class="info">
-                                        <strong>${place.name}</strong><br>
-                                        <small>${place.address || ''}</small><br> <small>距離您約 ${distanceKm} 公里</small>
-                                    </div>
-                                    <a href="${navLink}" target="_blank" rel="noopener">前往導航</a>`;
+                                li.innerHTML = `<div class="info"><strong>${place.name}</strong><br><small>${place.address || ''}</small><br><small>距離您約 ${distanceKm} 公里</small></div><a href="${navLink}" target="_blank" rel="noopener">前往導航</a>`;
                                 resultsDiv.appendChild(li);
                             });
                         } else {
                             statusDiv.textContent = '在您附近未找到相關地點。';
                         }
 
-                    } catch (error) {
-                        console.error('呼叫後端 API 時發生錯誤:', error);
-                        statusDiv.textContent = `查詢時發生錯誤：${error.message}`;
-                    } finally {
+                    } catch (error) { // 處理 fetch 或後續處理的錯誤
+                        console.error('查詢過程中發生錯誤:', error);
+                        let displayError = '查詢時發生未知錯誤。';
+                        // ... (錯誤訊息判斷保持不變) ...
+                         if (error instanceof TypeError && error.message.includes('Failed to construct \'URL\'')) { displayError = '後端 API 位址格式錯誤。'; } 
+                         else if (error instanceof TypeError && error.message.includes('fetch')) { displayError = '無法連接到後端伺服器，請檢查網路或伺服器狀態。'; } 
+                         else { displayError = `查詢時發生錯誤：${error.message}`; }
+                         statusDiv.textContent = displayError;
+                    } finally { // 無論如何都啟用按鈕
                         policeButton.disabled = false;
                         storeButton.disabled = false;
                     }
                 },
-                // 定位失敗時執行的函式 (與之前相同)
+                // 定位失敗的回呼函式
                 (error) => {
                     console.error('Geolocation error:', error);
                     let errorMessage = '無法取得您的位置。';
+                    // ... (錯誤訊息判斷保持不變) ...
                     if (error.code === 1) errorMessage = '您拒絕了位置授權。請重設權限後再試一次。';
                     if (error.code === 2) errorMessage = '無法根據您的網路或GPS判斷位置。';
                     if (error.code === 3) errorMessage = '定位超時，請確認您的 GPS訊號良好。';
@@ -216,29 +121,26 @@ async function findNearby(dataType) {
                     policeButton.disabled = false; storeButton.disabled = false;
                 }
             );
-        }
+        } // findNearby 函式定義結束
 
-        // LIFF 初始化 (保持不變)
+        // LIFF 初始化函式
         async function main() {
             try {
-                // 【重要】請確認這裡的 LIFF ID 仍然是指向 nearby.html 的那個
-                await liff.init({ liffId: "2008106671-RMxabbaV" }); 
+                // 【確認】請確保這個 LIFF ID 是您為 nearby.html 建立的那個
+                await liff.init({ liffId: "2008106671-RMxabbaV" });
                 if (liff.isLoggedIn()) {
+                    // 將按鈕事件綁定到 *唯一* 的 findNearby 函式
                     document.getElementById('searchPolice').addEventListener('click', () => findNearby('police'));
-                    // 【注意】便利商店按鈕暫時無法使用，因為後端尚未支援 type=store
-                    // 我們可以先讓它也搜尋警察局，或者先禁用它
                     document.getElementById('searchStore').addEventListener('click', () => {
-                         alert("便利商店功能尚未完成，敬請期待！");
-                         // 或者如果您想讓它也搜尋警察局： findNearby('police'); 
-                    }); 
-                    // document.getElementById('searchStore').disabled = true; // 直接禁用按鈕
+                         alert("便利商店功能尚未完成，後端需擴充！");
+                    });
                 }
             } catch (err) {
                 console.error('LIFF Initialization failed', err);
                 document.getElementById('status').textContent = 'LIFF 初始化失敗。';
             }
         }
-        main();
+        main(); // 執行初始化
     </script>
 </body>
 </html>
