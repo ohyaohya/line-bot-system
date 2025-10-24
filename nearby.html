@@ -75,19 +75,39 @@
 
                     // --- 2. 呼叫我們自己的後端 API ---
                     try {
-                        // 組合後端 API 的網址，加上 lat, lng 和 type 參數
-                        const apiUrl = `${BACKEND_API_BASE_URL}/api/nearby?lat=${userLat}&lng=${userLng}&type=${dataType}`;
+// 【新】使用 URLSearchParams 來更安全地組合參數
+const params = new URLSearchParams({
+    lat: userLat,
+    lng: userLng,
+    type: dataType
+});
 
-                        // 【重要】如果 BACKEND_API_BASE_URL 尚未設定，先提示錯誤
-                        if (!BACKEND_API_BASE_URL) {
-                            throw new Error("後端 API 位址尚未設定");
-                        }
+// 組合最終的 URL 字串
+const apiUrl = `${BACKEND_API_BASE_URL}/api/nearby?${params.toString()}`;
 
-                        console.log("正在呼叫後端 API:", apiUrl);
-                        alert("準備呼叫的 API 網址:\n" + apiUrl); // 在 Console 印出呼叫的網址
+// 【重要】如果 BACKEND_API_BASE_URL 尚未設定，先提示錯誤
+if (!BACKEND_API_BASE_URL) {
+    throw new Error("後端 API 位址尚未設定");
+}
 
-                        // 使用 fetch 指令發送 GET 請求到後端
-                        const response = await fetch(apiUrl);
+alert("準備呼叫的 API 網址:\n" + apiUrl); // 保留 alert 方便觀察
+console.log("正在呼叫後端 API:", apiUrl);
+
+// 【新】嘗試使用 URL 物件來進行 fetch，可能更穩定
+try {
+    const urlObject = new URL(apiUrl); 
+    const response = await fetch(urlObject); // 改用 URL 物件來 fetch
+// --- 後續的 response.ok 檢查 和 await response.json() 保持不變 ---
+
+// ... (原本 try 區塊剩餘的程式碼) ...
+
+} catch (fetchError) {
+    // 如果 fetch 本身就失敗 (例如 URL 格式錯誤)，在這裡處理
+     console.error('Fetch API 呼叫失敗:', fetchError);
+     throw new Error(`無法呼叫後端 API: ${fetchError.message}`); // 拋出新的錯誤，會被外層 catch 接住
+}
+
+// --- 【注意】原本的 const response = await fetch(apiUrl); 要刪掉 ---
 
                         // 檢查後端是否回應成功 (狀態碼 200-299)
                         if (!response.ok) {
