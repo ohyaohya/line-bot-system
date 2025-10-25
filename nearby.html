@@ -61,8 +61,10 @@ async function findNearby(type) {
         status.textContent = `定位成功：${lat}, ${lng}，正在查詢...`;
 
         const params = new URLSearchParams({ lat, lng, type });
-        const apiUrl = `${BACKEND_API_BASE_URL}/api/nearby?${params.toString()}`;
-        console.log('API URL:', apiUrl);
+        let apiUrl = `${BACKEND_API_BASE_URL}/api/nearby?${params.toString()}`;
+        // 轉碼 URL，避免非法字元錯誤
+        apiUrl = encodeURI(apiUrl);
+        console.log('最終 API URL:', apiUrl);
 
         try {
             const resp = await fetch(apiUrl);
@@ -73,9 +75,7 @@ async function findNearby(type) {
             if (!data || data.length === 0) {
                 status.textContent = '附近沒有資料';
             } else {
-                // 依距離排序
                 data.sort((a,b) => a.distance - b.distance);
-
                 status.textContent = `找到 ${data.length} 個結果，距離由近到遠排序`;
                 data.forEach(p => {
                     const li = document.createElement('li');
