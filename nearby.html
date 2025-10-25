@@ -6,60 +6,35 @@
     <title>查找附近設施 (動態版)</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f4f9;
-            color: #333;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
+        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         h2 { text-align: center; color: #333; }
         .button-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        .searchButton {
-            flex: 1; padding: 15px; font-size: 16px; font-weight: bold; color: white;
-            border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;
-        }
+        .searchButton { flex: 1; padding: 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; }
         .searchButton:disabled { background-color: #aaa; cursor: not-allowed; }
         #searchPolice { background-color: #007bff; }
         #searchStore { background-color: #28a745; }
         #status { text-align: center; margin: 20px 0; font-style: italic; color: #6c757d; }
-        #coords { text-align: center; font-size: 14px; color: #555; margin-bottom: 10px; }
-        #results li {
-            list-style-type: none; padding: 15px; border-bottom: 1px solid #eee;
-            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
-        }
+        #results li { list-style-type: none; padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
         #results li:last-child { border-bottom: none; }
         #results .info { margin-right: 10px; }
-        #results a {
-            display: inline-block; padding: 8px 12px; background-color: #17a2b8;
-            color: white; text-decoration: none; border-radius: 5px; white-space: nowrap;
-        }
+        #results a { display: inline-block; padding: 8px 12px; background-color: #17a2b8; color: white; text-decoration: none; border-radius: 5px; white-space: nowrap; }
         #results { padding: 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>查找附近設施 (動態版)</h2>
-
         <div class="button-group">
             <button id="searchPolice" class="searchButton">找最近的警察局</button>
             <button id="searchStore" class="searchButton">找最近的便利商店</button>
         </div>
-
         <div id="status">請選擇要搜尋的項目。</div>
-        <div id="coords"></div> <!-- ✅ 新增位置顯示 -->
         <ul id="results"></ul>
     </div>
 
     <script>
+        // ✅ 請確保這裡是正確 ngrok HTTPS 網址 (不帶斜線)
         const BACKEND_API_BASE_URL = "https://jayceon-lawlike-unallegedly.ngrok-free.dev";
 
         function getDistance(lat1, lon1, lat2, lon2) {
@@ -71,21 +46,19 @@
                       Math.cos(lat2 * Math.PI / 180) *
                       Math.sin(dLon / 2) ** 2;
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return (R * c).toFixed(2);
+            return R * c;
         }
 
         async function findNearby(dataType) {
             const statusDiv = document.getElementById('status');
             const resultsDiv = document.getElementById('results');
-            const coordsDiv = document.getElementById('coords');
             const policeButton = document.getElementById('searchPolice');
             const storeButton = document.getElementById('searchStore');
 
             policeButton.disabled = true;
             storeButton.disabled = true;
-            resultsDiv.innerHTML = '';
-            coordsDiv.textContent = '';
             statusDiv.textContent = '正在取得您的位置...';
+            resultsDiv.innerHTML = '';
 
             if (!navigator.geolocation) {
                 statusDiv.textContent = '您的瀏覽器不支援定位功能。';
@@ -98,34 +71,38 @@
                 async (position) => {
                     const userLat = position.coords.latitude;
                     const userLng = position.coords.longitude;
-                    console.log("📍 取得座標:", userLat, userLng);
-
-                    coordsDiv.textContent = `📍 您的位置：${userLat.toFixed(6)}, ${userLng.toFixed(6)}`;
 
                     try {
-                        statusDiv.textContent = '定位成功，正在查詢資料...';
-                        const cleanBaseUrl = BACKEND_API_BASE_URL.trim().replace(/\/+$/, "");
-                        const params = new URLSearchParams({ lat: userLat, lng: userLng, type: dataType });
-                        const apiUrl = `${cleanBaseUrl}/api/nearby?${params.toString()}`;
-                        console.log("🔗 組合後的 API URL:", apiUrl);
+                        statusDiv.textContent = '定位成功，正在向後端請求資料...';
 
-                        if (!/^https:\/\/[a-zA-Z0-9.-]+/.test(cleanBaseUrl)) {
-                            throw new Error("後端 API 位址格式錯誤：請確認為 https:// 開頭且無空格或符號。");
-                        }
+                        const params = new URLSearchParams({
+                            lat: userLat,
+                            lng: userLng,
+                            type: dataType
+                        });
 
+                        if (!BACKEND_API_BASE_URL) throw new Error("後端 API 位址尚未設定");
+
+                        const apiUrl = `${BACKEND_API_BASE_URL}/api/nearby?${params.toString()}`;
+                        console.log("✅ 最終 API URL:", apiUrl);
+
+                        // ✅ 修正這裡：直接用 fetch，不再用 new URL()
                         const response = await fetch(apiUrl);
+
                         if (!response.ok) {
-                            throw new Error(`後端伺服器錯誤 (HTTP ${response.status})`);
+                            let errorData = { message: `後端伺服器錯誤 (HTTP ${response.status})` };
+                            try { errorData = await response.json(); } catch {}
+                            throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
                         }
 
                         const nearestPlaces = await response.json();
-                        console.log("📦 後端回傳:", nearestPlaces);
+                        console.log("📦 收到後端回應:", nearestPlaces);
 
                         if (nearestPlaces && nearestPlaces.length > 0) {
-                            statusDiv.textContent = `以下是離您最近的${dataType === 'police' ? '警察局' : '便利商店'}：`;
+                            statusDiv.textContent = `搜尋完成！以下是離您最近的${dataType === 'police' ? '警察局' : '便利商店'}：`;
                             nearestPlaces.forEach(place => {
                                 const li = document.createElement('li');
-                                const distanceKm = place.distance ?? getDistance(userLat, userLng, place.lat, place.lng);
+                                const distanceKm = place.distance;
                                 const navLink = `https://www.google.com/maps?q=${place.lat},${place.lng}`;
                                 li.innerHTML = `
                                     <div class="info">
@@ -133,29 +110,33 @@
                                         <small>${place.address || ''}</small><br>
                                         <small>距離您約 ${distanceKm} 公里</small>
                                     </div>
-                                    <a href="${navLink}" target="_blank" rel="noopener">前往導航</a>
-                                `;
+                                    <a href="${navLink}" target="_blank" rel="noopener">前往導航</a>`;
                                 resultsDiv.appendChild(li);
                             });
                         } else {
                             statusDiv.textContent = '在您附近未找到相關地點。';
                         }
-
                     } catch (error) {
-                        console.error('❌ 查詢過程中發生錯誤:', error);
-                        statusDiv.textContent = `查詢時發生錯誤：${error.message}`;
+                        console.error('查詢過程中發生錯誤:', error);
+                        let displayError = '查詢時發生未知錯誤。';
+                        if (error instanceof TypeError && error.message.includes('fetch'))
+                            displayError = '無法連接到後端伺服器，請檢查網路或伺服器狀態。';
+                        else
+                            displayError = `查詢時發生錯誤：${error.message}`;
+
+                        statusDiv.textContent = displayError + `\n📍 您的位置：${userLat}, ${userLng}`;
                     } finally {
                         policeButton.disabled = false;
                         storeButton.disabled = false;
                     }
                 },
                 (error) => {
-                    console.error('📵 定位錯誤:', error);
-                    let msg = '無法取得您的位置。';
-                    if (error.code === 1) msg = '您拒絕了位置授權。';
-                    if (error.code === 2) msg = '無法根據網路或GPS判斷位置。';
-                    if (error.code === 3) msg = '定位逾時，請確認 GPS 訊號良好。';
-                    statusDiv.textContent = msg;
+                    console.error('Geolocation error:', error);
+                    let errorMessage = '無法取得您的位置。';
+                    if (error.code === 1) errorMessage = '您拒絕了位置授權。請重設權限後再試一次。';
+                    if (error.code === 2) errorMessage = '無法根據您的網路或GPS判斷位置。';
+                    if (error.code === 3) errorMessage = '定位超時，請確認您的 GPS訊號良好。';
+                    statusDiv.textContent = errorMessage;
                     policeButton.disabled = false;
                     storeButton.disabled = false;
                 }
@@ -163,24 +144,19 @@
         }
 
         async function main() {
-            const statusDiv = document.getElementById('status');
             try {
                 await liff.init({ liffId: "2008106671-RMxabbaV" });
-                await liff.ready;
-                console.log("✅ LIFF 初始化完成");
-
-                if (!liff.isLoggedIn()) {
-                    console.log("🔑 使用者尚未登入，重新導向登入...");
+                if (liff.isLoggedIn()) {
+                    document.getElementById('searchPolice').addEventListener('click', () => findNearby('police'));
+                    document.getElementById('searchStore').addEventListener('click', () => {
+                        alert("便利商店功能尚未完成，後端需擴充！");
+                    });
+                } else {
                     liff.login();
-                    return;
                 }
-
-                document.getElementById('searchPolice').addEventListener('click', () => findNearby('police'));
-                document.getElementById('searchStore').addEventListener('click', () => findNearby('store'));
-                statusDiv.textContent = "LIFF 已載入，請選擇要搜尋的項目。";
             } catch (err) {
-                console.error('❌ LIFF 初始化失敗:', err);
-                statusDiv.textContent = 'LIFF 初始化失敗，請重新整理或檢查設定。';
+                console.error('LIFF Initialization failed', err);
+                document.getElementById('status').textContent = 'LIFF 初始化失敗。';
             }
         }
 
