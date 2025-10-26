@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>情境錄音播放器（純靜態字幕版，顯示說話者）</title>
+    <style>
+        /* CSS 樣式開始 */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f9;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 900px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+        }
+
+        .scenario-buttons {
+            margin-bottom: 25px;
+            /* 3x3 網格佈局 */
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 15px; 
+            justify-content: center;
+        }
+
+        .scenario-buttons button {
+            padding: 15px 25px; /* 加大按鈕尺寸 */
+            margin: 0;
+            border: none;
+            border-radius: 8px;
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        .scenario-buttons button:hover {
+            background-color: #2980b9;
+        }
+
+        #audioPlayer {
+            width: 100%;
+            margin-bottom: 30px; 
+            border-radius: 4px;
+        }
+
+        /* 完整靜態字幕列表區塊 */
+        #staticTranscriptContainer {
+            text-align: left;
+            padding: 15px;
+            background: #fcfcfc;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            max-height: 400px; 
+            overflow-y: auto; 
+        }
+        
+        #staticTranscriptContainer h2 {
+            font-size: 1.5em;
+            color: #3498db;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        #staticTranscriptList li {
+            list-style: none;
+            padding: 8px 0;
+            font-size: 1.2em;
+            border-bottom: 1px dotted #eee;
+            display: flex; /* 使用 flex 排版，讓說話者和內容對齊 */
+        }
+
+        /* 說話者名稱欄位樣式 */
+        #staticTranscriptList .speaker-label {
+            min-width: 120px; /* 固定說話者欄位寬度 */
+            font-weight: bold;
+            margin-right: 15px;
+            /* 確保對齊 */
+            text-align: right; 
+        }
+        
+        /* 回覆內容樣式 */
+        #staticTranscriptList .reply-content {
+            color: #e74c3c; 
+            font-weight: bold;
+            background: #fdeaea;
+            padding: 2px 5px; 
+            border-radius: 3px;
+        }
+        
+        /* 元數據（如響鈴）樣式 */
+        #staticTranscriptList .meta-content {
+             color: #95a5a6;
+             font-style: italic;
+             /* 讓元數據內容和說話者標籤一起佔用空間 */
+             flex-grow: 1; 
+        }
+        
+        /* 隱藏不再需要的動態區塊 */
+        #subtitleDisplay, #calibrationHint {
+            display: none; 
+        }
+        
+        /* CSS 樣式結束 */
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>情境錄音播放器</h1>
+
+        <div class="scenario-buttons">
+            <button onclick="loadScenario('friendm')">情境一：朋友男</button>
+            <button onclick="loadScenario('friendg')">情境二：朋友女</button>
+            <button onclick="loadScenario('safem')">情境三：安全搭車男</button>
+            <button onclick="loadScenario('safeg')">情境四：安全搭車女</button>
+            <button onclick="loadScenario('bf')">情境五：男朋友</button>
+            <button onclick="loadScenario('gf')">情境六：女朋友</button>
+            <button onclick="loadScenario('dad')">情境七：爸爸</button>
+            <button onclick="loadScenario('mom')">情境八：媽媽</button>
+            <button onclick="loadScenario('dad1')">情境九：台語爸</button>
+        </div>
+
+        <audio id="audioPlayer" controls></audio>
+        
+        <div id="staticTranscriptContainer">
+            <h2 id="transcriptTitle">請選擇一個情境來顯示完整對話</h2>
+            <ul id="staticTranscriptList">
+                </ul>
+        </div>
+    </div>
+    
+    <script>
+        const SPEAKER_PARTNER = "小夥伴"; 
+        const SPEAKER_USER = "你";      
+        const RING_DURATION = 3.5; 
+        
+        // 1. 數據結構 (內容不變)
+        const SCENARIOS = {
+            // ------------------ 朋友模式 ------------------
+            'friendm': {
+                title: '朋友男',
+                audioSrc: '朋友男.m4a',
+                subtitles: [
+                    { start: 0.00, end: 3.50, text: "（電話響鈴聲...）", type: 'meta' },
+                    { start: 3.50, end: 5.00, text: "喂，你在哪裡？", speaker: SPEAKER_PARTNER }, 
+                    { start: 5.00, end: 6.50, text: "（在路上了）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 6.50, end: 7.50, text: "啊還要幾分鐘？", speaker: SPEAKER_PARTNER },
+                    { start: 7.50, end: 9.00, text: "（？分鐘）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 9.00, end: 11.50, text: "哦好啦那你到了說一下我去接你", speaker: SPEAKER_PARTNER },
+                    { start: 11.50, end: 13.00, text: "（哦好啦掰）", type: 'reply', speaker: SPEAKER_USER, isEnd: true } 
+                ]
+            },
+            'friendg': {
+                title: '朋友女',
+                audioSrc: '朋友女.m4a',
+                subtitles: [
+                    { start: 0.0, end: RING_DURATION, text: "（電話響鈴聲...）", type: 'meta' },
+                    { start: RING_DURATION, end: 5.2, text: "喂，你在哪裡？", speaker: SPEAKER_PARTNER }, 
+                    { start: 5.2, end: 6.7, text: "（在路上了）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 6.7, end: 7.8, text: "啊還要幾分鐘？", speaker: SPEAKER_PARTNER },
+                    { start: 7.8, end: 9.3, text: "（？分鐘）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 9.3, end: 11.8, text: "哦好啦，那你到我說一下我去接你", speaker: SPEAKER_PARTNER },
+                    { start: 11.8, end: 13.3, text: "（哦好啦掰）", type: 'reply', speaker: SPEAKER_USER, isEnd: true } 
+                ]
+            },
+
+            // ------------------ 安全搭車模式 ------------------
+            'safem': {
+                title: '安全搭車男',
+                audioSrc: '安全搭車男.m4a',
+                subtitles: [
+                    { start: 0.0, end: RING_DURATION, text: "（電話響鈴聲...）", type: 'meta' },
+                    { start: RING_DURATION, end: 5.4, text: "喂，你上車了沒", speaker: SPEAKER_PARTNER },
+                    { start: 5.4, end: 6.9, text: "（上車了）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 6.9, end: 7.9, text: "阿你車牌多少", speaker: SPEAKER_PARTNER },
+                    { start: 7.9, end: 9.4, text: "（xxxxxxx）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 9.4, end: 11.4, text: "哦好啦注意安全喔等等見", speaker: SPEAKER_PARTNER },
+                    { start: 11.4, end: 12.9, text: "（好掰）", type: 'reply', speaker: SPEAKER_USER, isEnd: true } 
+                ]
+            },
+            'safeg': {
+                title: '安全搭車女',
+                audioSrc: '安全搭車女.m4a',
+                subtitles: [
+                    { start: 0.0, end: RING_DURATION, text: "（電話響鈴聲...）", type: 'meta' },
+                    { start: RING_DURATION, end: 5.2, text: "喂，你上車了沒", speaker: SPEAKER_PARTNER },
+                    { start: 5.2, end: 6.7, text: "（上車了）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 6.7, end: 7.7, text: "啊你車牌多少", speaker: SPEAKER_PARTNER },
+                    { start: 7.7, end: 9.2, text: "（xxxxxxx）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 9.2, end: 11.0, text: "喔好啦注意安全喔等等見", speaker: SPEAKER_PARTNER },
+                    { start: 11.0, end: 12.5, text: "（好掰）", type: 'reply', speaker: SPEAKER_USER, isEnd: true } 
+                ]
+            },
+
+            // ------------------ 情侶模式 ------------------
+            'bf': {
+                title: '男朋友',
+                audioSrc: '男友.m4a',
+                subtitles: [
+                    { start: 0.0, end: RING_DURATION, text: "（電話響鈴聲...）", type: 'meta' },
+                    { start: RING_DURATION, end: 5.4, text: "喂，寶寶你到哪了？", speaker: SPEAKER_PARTNER },
+                    { start: 5.4, end: 6.9, text: "（在路上了）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 6.9, end: 10.5, text: "ㄛ好呀好呀那我等等買宵夜去給你吃哦", speaker: SPEAKER_PARTNER },
+                    { start: 10.5, end: 12.0, text: "（好啊你真好💗）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 12.0, end: 12.8, text: "阿你大概多久到？", speaker: SPEAKER_PARTNER },
+                    { start: 12.8, end: 14.3, text: "（幾分鐘）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 14.3, end: 15.6, text: "好啊等你過來喔～", speaker: SPEAKER_PARTNER },
+                    { start: 15.6, end: 17.1, text: "（好的掰掰）", type: 'reply', speaker: SPEAKER_USER, isEnd: true } 
+                ]
+            },
+            'gf': {
+                title: '女朋友',
+                audioSrc: '女友.m4a',
+                subtitles: [
+                    { start: 0.0, end: RING_DURATION, text: "（電話響鈴聲...）", type: 'meta' },
+                    { start: RING_DURATION, end: 5.5, text: "喂，寶寶你到哪了？", speaker: SPEAKER_PARTNER },
+                    { start: 5.5, end: 7.0, text: "（在路上了）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 7.0, end: 9.5, text: "ㄛ好呀好呀那我等等買宵夜去給你吃哦", speaker: SPEAKER_PARTNER },
+                    { start: 9.5, end: 11.0, text: "（好啊你真好💗）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 11.0, end: 12.0, text: "阿你大概多久到？", speaker: SPEAKER_PARTNER },
+                    { start: 12.0, end: 13.5, text: "（幾分鐘）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 13.5, end: 15.0, text: "好啊等你過來喔～", speaker: SPEAKER_PARTNER },
+                    { start: 15.0, end: 16.5, text: "（好的掰掰）", type: 'reply', speaker: SPEAKER_USER, isEnd: true } 
+                ]
+            },
+
+            // ------------------ 家人模式 ------------------
+            'dad': {
+                title: '爸爸',
+                audioSrc: '爸爸.m4a',
+                subtitles: [
+                    { start: 0.0, end: RING_DURATION, text: "（電話響鈴聲...）", type: 'meta' },
+                    { start: RING_DURATION, end: 5.0, text: "喂，啊你要回來了沒？", speaker: SPEAKER_PARTNER },
+                    { start: 5.0, end: 6.5, text: "（好啦好啦快到了啦）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 6.5, end: 7.5, text: "啊還要多久？", speaker: SPEAKER_PARTNER },
+                    { start: 7.5, end: 9.0, text: "（大概再？分鐘）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 9.0, end: 10.8, text: "好啦那我把菜熱一熱等你回來", speaker: SPEAKER_PARTNER },
+                    { start: 10.8, end: 12.3, text: "（好我知道了掰掰）", type: 'reply', speaker: SPEAKER_USER, isEnd: true } 
+                ]
+            },
+            'mom': {
+                title: '媽媽',
+                audioSrc: '媽媽.m4a',
+                subtitles: [
+                    { start: 0.0, end: RING_DURATION, text: "（電話響鈴聲...）", type: 'meta' },
+                    { start: RING_DURATION, end: 5.0, text: "喂，啊你回來了沒？", speaker: SPEAKER_PARTNER },
+                    { start: 5.0, end: 6.5, text: "（好啦好啦快到了啦）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 6.5, end: 7.5, text: "啊還要多久？", speaker: SPEAKER_PARTNER },
+                    { start: 7.5, end: 9.0, text: "（大概再？分鐘）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 9.0, end: 11.5, text: "好啦，那我把菜熱熱等你回來喔", speaker: SPEAKER_PARTNER },
+                    { start: 11.5, end: 13.0, text: "（好我知道了掰掰）", type: 'reply', speaker: SPEAKER_USER, isEnd: true } 
+                ]
+            },
+            'dad1': {
+                title: '台語爸',
+                audioSrc: '台語爸.m4a',
+                subtitles: [
+                    { start: 0.0, end: RING_DURATION, text: "（電話響鈴聲...）", type: 'meta' },
+                    { start: RING_DURATION, end: 5.5, text: "喂，你已經到厝（tsù）矣無？", speaker: SPEAKER_PARTNER },
+                    { start: 5.5, end: 7.0, text: "（好啦好啦快到了啦）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 7.0, end: 8.0, text: "啊溝（koh）哇咕？", speaker: SPEAKER_PARTNER },
+                    { start: 8.0, end: 9.5, text: "（大概再？分鐘）", type: 'reply', speaker: SPEAKER_USER }, 
+                    { start: 9.5, end: 11.5, text: "好啦，哇丟（to̍h）給你按 等（án-tán）衝衝喔", speaker: SPEAKER_PARTNER },
+                    { start: 11.5, end: 13.0, text: "（好我知道了掰掰）", type: 'reply', speaker: SPEAKER_USER, isEnd: true } 
+                ]
+            }
+        };
+
+        const audioPlayer = document.getElementById('audioPlayer');
+        const staticTranscriptList = document.getElementById('staticTranscriptList');
+        const transcriptTitle = document.getElementById('transcriptTitle');
+
+        /**
+         * 載入選定的情境音檔和字幕資料，並顯示完整對話
+         */
+        function loadScenario(scenarioKey) {
+            const scenario = SCENARIOS[scenarioKey];
+            if (!scenario) {
+                transcriptTitle.textContent = "錯誤：找不到該情境數據。";
+                return;
+            }
+
+            // 1. 停止並載入新的音訊來源
+            audioPlayer.pause();
+            audioPlayer.src = scenario.audioSrc;
+            audioPlayer.load(); 
+
+            // 2. 更新標題
+            transcriptTitle.textContent = `完整對話內容：${scenario.title}`;
+            
+            // 3. 顯示完整靜態字幕列表
+            displayFullTranscript(scenario.subtitles);
+        }
+        
+        /**
+         * 渲染完整對話內容到下方列表
+         */
+        function displayFullTranscript(subtitles) {
+            staticTranscriptList.innerHTML = ''; // 清空舊內容
+            subtitles.forEach((sub) => {
+                const li = document.createElement('li');
+                
+                let speakerLabel = sub.speaker || ''; // 獲取說話者標籤
+                let displayText = sub.text;
+                let contentClass = '';
+                
+                // 檢查是否為回覆段落，並給予樣式
+                if (sub.type === 'reply') {
+                    contentClass = 'reply-content';
+                } else if (sub.type === 'meta') {
+                    contentClass = 'meta-content';
+                }
+                
+                // 構建說話者標籤。如果是元數據，則speakerLabel為空。
+                // 如果 speakerLabel 為空，則只顯示一個 min-width 的空 span。
+                const speakerHtml = `<span class="speaker-label">${speakerLabel}${speakerLabel ? '：' : ''}</span>`;
+
+                li.innerHTML = `
+                    ${speakerHtml}
+                    <span class="${contentClass}">${displayText}</span>
+                `;
+                staticTranscriptList.appendChild(li);
+            });
+        }
+        
+        // 頁面載入時，預設載入第一個情境
+        window.onload = function() {
+            loadScenario('friendm'); 
+        };
+    </script>
+
+</body>
+</html>
