@@ -1,8 +1,10 @@
+
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>情境錄音播放器（純靜態字幕版，顯示說話者）</title>
+    <title>安心小夥伴</title>
     <style>
         /* CSS 樣式開始 */
         body {
@@ -124,6 +126,7 @@
         
         /* CSS 樣式結束 */
     </style>
+	<script src="https://static.line-scdn.net/liff/edge/2.3/sdk.js"></script>
 </head>
 <body>
 
@@ -141,7 +144,24 @@
             <button onclick="loadScenario('mom')">情境八：媽媽</button>
             <button onclick="loadScenario('dad1')">情境九：台語爸</button>
         </div>
+		<script>
+    // 初始化 LIFF
+    async function main() {
+      await liff.init({ liffId: "2008106671-bpPJ99J3" });
 
+      // 取得使用者資料
+      document.getElementById("btn-profile").addEventListener("click", async () => {
+        if (!liff.isLoggedIn()) {
+          liff.login();
+        } else {
+          const profile = await liff.getProfile();
+          alert(`Hello, ${profile.displayName}`);
+        }
+      });
+    }
+
+    main();
+  </script>
         <audio id="audioPlayer" controls></audio>
         
         <div id="staticTranscriptContainer">
