@@ -1,57 +1,64 @@
-
-
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <title>安心小夥伴</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
     <style>
         /* CSS 樣式開始 */
         body {
             font-family: Arial, sans-serif;
             display: flex;
             justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            /* 1. 【滿版優化】調整：從原本的 'align-items: center' 改為 'flex-start' */
+            align-items: flex-start; 
+            /* 2. 【滿版優化】調整：移除 min-height: 100vh，讓內容根據實際長度決定高度 */
+            /* 但為了讓背景填滿，我們通常會保留 min-height: 100vh 讓背景填滿 */
+            min-height: 100vh; 
             margin: 0;
             background-color: #f4f4f9;
+            /* 3. 【滿版優化】移除頂部和底部的 padding，讓內容可以貼邊 */
+            padding: 0; 
         }
 
         .container {
             background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
-            width: 90%;
+            /* 4. 【滿版優化】調整 padding: 針對手機做優化 */
+            padding: 20px; 
+            border-radius: 0; /* 5. 【滿版優化】移除圓角，讓內容與手機邊緣貼合 */
+            box-shadow: none; /* 6. 【滿版優化】移除陰影，視覺上更乾淨 */
+            width: 100%; /* 7. 【滿版優化】手機上寬度固定為 100% */
             max-width: 900px;
             text-align: center;
+            box-sizing: border-box; 
         }
 
         h1 {
             color: #2c3e50;
-            margin-bottom: 25px;
+            margin-bottom: 20px; 
+            font-size: 1.8em; 
         }
 
         .scenario-buttons {
-            margin-bottom: 25px;
-            /* 3x3 網格佈局 */
+            margin-bottom: 20px; 
+            /* 桌面/平板 3x3 網格佈局 */
             display: grid;
             grid-template-columns: repeat(3, 1fr); 
-            gap: 15px; 
+            gap: 10px; 
             justify-content: center;
         }
 
         .scenario-buttons button {
-            padding: 15px 25px; /* 加大按鈕尺寸 */
-            margin: 0;
+            padding: 12px 15px; 
             border: none;
             border-radius: 8px;
             background-color: #3498db;
             color: white;
             font-weight: bold;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 16px; 
             transition: background-color 0.3s, transform 0.1s;
+            word-break: break-all; 
         }
 
         .scenario-buttons button:hover {
@@ -60,46 +67,47 @@
 
         #audioPlayer {
             width: 100%;
-            margin-bottom: 30px; 
+            margin-bottom: 25px; 
             border-radius: 4px;
         }
 
         /* 完整靜態字幕列表區塊 */
         #staticTranscriptContainer {
             text-align: left;
-            padding: 15px;
+            padding: 10px; 
             background: #fcfcfc;
             border: 1px solid #ddd;
             border-radius: 8px;
-            max-height: 400px; 
+            max-height: 300px; 
             overflow-y: auto; 
         }
         
         #staticTranscriptContainer h2 {
-            font-size: 1.5em;
+            font-size: 1.3em; 
             color: #3498db;
             border-bottom: 2px solid #3498db;
             padding-bottom: 5px;
             margin-top: 0;
-            margin-bottom: 15px;
+            margin-bottom: 10px; 
             text-align: center;
         }
         
         #staticTranscriptList li {
             list-style: none;
-            padding: 8px 0;
-            font-size: 1.2em;
+            padding: 6px 0; 
+            font-size: 1.0em; 
             border-bottom: 1px dotted #eee;
-            display: flex; /* 使用 flex 排版，讓說話者和內容對齊 */
+            display: flex; 
+            line-height: 1.4; 
         }
 
         /* 說話者名稱欄位樣式 */
         #staticTranscriptList .speaker-label {
-            min-width: 120px; /* 固定說話者欄位寬度 */
+            min-width: 80px; 
             font-weight: bold;
-            margin-right: 15px;
-            /* 確保對齊 */
+            margin-right: 10px;
             text-align: right; 
+            flex-shrink: 0; 
         }
         
         /* 回覆內容樣式 */
@@ -109,19 +117,70 @@
             background: #fdeaea;
             padding: 2px 5px; 
             border-radius: 3px;
+            flex-grow: 1; 
         }
         
         /* 元數據（如響鈴）樣式 */
         #staticTranscriptList .meta-content {
              color: #95a5a6;
              font-style: italic;
-             /* 讓元數據內容和說話者標籤一起佔用空間 */
              flex-grow: 1; 
         }
         
         /* 隱藏不再需要的動態區塊 */
         #subtitleDisplay, #calibrationHint {
             display: none; 
+        }
+        
+        /* Media Query for Mobile Devices (螢幕寬度小於 600px) */
+        @media (max-width: 600px) {
+            
+            .container {
+                /* 8. 【滿版優化】確保手機上 padding 貼合內容 */
+                padding: 15px; 
+                /* 9. 【滿版優化】讓 container 佔滿整個垂直空間，實現視覺上的 full-height */
+                min-height: 100vh;
+            }
+
+            /* 手機上按鈕區改為 2 欄 */
+            .scenario-buttons {
+                grid-template-columns: repeat(2, 1fr); 
+                gap: 8px; 
+            }
+
+            /* 讓台語爸這個較長的名稱自己佔據一行 */
+            .scenario-buttons button:nth-child(9) { 
+                grid-column: span 2; 
+            }
+
+            .scenario-buttons button {
+                padding: 10px;
+                font-size: 14px; 
+            }
+            
+            h1 {
+                font-size: 1.5em;
+            }
+
+            #staticTranscriptList li {
+                font-size: 0.95em;
+            }
+
+            #staticTranscriptList .speaker-label {
+                min-width: 60px; 
+            }
+        }
+        
+        /* 額外優化：Media Query for Very Small Phones (螢幕寬度小於 380px) */
+        @media (max-width: 380px) {
+             /* 極小螢幕下，按鈕區改為 1 欄 */
+            .scenario-buttons {
+                grid-template-columns: 1fr; 
+            }
+             /* 讓所有按鈕都佔滿 1 欄 */
+            .scenario-buttons button {
+                grid-column: span 1 !important; 
+            }
         }
         
         /* CSS 樣式結束 */
@@ -150,7 +209,7 @@
       await liff.init({ liffId: "2008106671-bpPJ99J3" });
 
       // 取得使用者資料
-      document.getElementById("btn-profile").addEventListener("click", async () => {
+      document.getElementById("btn-profile") && document.getElementById("btn-profile").addEventListener("click", async () => {
         if (!liff.isLoggedIn()) {
           liff.login();
         } else {
