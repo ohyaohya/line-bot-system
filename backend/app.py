@@ -17,7 +17,7 @@ STORES_CSV = os.path.join(DATA_DIR, "stores.csv")
 STORES_TAIPEI_CSV = os.path.join(DATA_DIR, "stores_taipei.csv")
 GEOCODE_CACHE_FILE = os.path.join(DATA_DIR, "geocode_cache.json")
 
-GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "AIzaSyBTRKrO8LFhHARu7rHAXzpXe7DfM0Ypn1g")
+GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 GEOCODING_API_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 TAIPEI_POLICE_API_URL = "https://data.taipei/api/v1/dataset/a90ae184-c39e-4242-b2d6-d7a0403c0632?scope=resourceAquire"
 
@@ -273,3 +273,4 @@ def serve_nearby():
 if __name__ == "__main__":
     print("🚀 啟動 Guardian Light 後端（最準確地理版本）")
     app.run(debug=True, host="0.0.0.0", port=5001)
+
