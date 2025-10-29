@@ -1,398 +1,225 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>查找附近設施 (優化版)</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <style>
-        /* --- 🎨 樣式稍微美化 --- */
-        body{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;margin:0;padding:20px;background:#f4f4f9;color:#333} 
-        .container{max-width:760px;margin:0 auto;background:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.08)} 
-        h2{text-align:center;margin:0 0 14px; color: #111827;} 
-        .controls{display:flex;flex-direction:column;gap:10px;margin-bottom:14px} 
-        .row{display:flex;gap:8px;flex-wrap:wrap} 
-        select,.btn{padding:12px;border:1px solid #d1d5db;border-radius:10px;font-size:15px; background-color: #fff;} 
-        select{flex:1; cursor: pointer;} 
-        .btn{cursor:pointer;font-weight:700; transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;}
-        .btn:hover:not(:disabled) { box-shadow: 0 2px 5px rgba(0,0,0,0.1); transform: translateY(-1px);}
-        .btn-primary{background:#0d6efd;color:#fff;border:none} 
-        .btn-primary:hover:not(:disabled){background:#0b5ed7;}
-        .btn-success{background:#198754;color:#fff;border:none} 
-        .btn-success:hover:not(:disabled){background:#157347;}
-        .btn-ghost{background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;}
-        .btn-ghost:hover:not(:disabled){background:#e5e7eb;}
-        .btn-toggle{background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;}
-        .btn-toggle.active{background:#1f2937;color:#fff;border-color:#1f2937;}
-        .btn:disabled{opacity:.6;cursor:not-allowed} 
-        #status{margin:10px 0 6px;text-align:center;color:#6b7280;font-style:italic; min-height: 1.2em;} 
-        #coords{font-size:12px;color:#9aa0a6;text-align:center;margin-top:-2px;margin-bottom:10px} 
-        .my-location{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px;border:1px dashed #d1d5db;border-radius:10px;background:#fafafa;margin:8px 0 14px} 
-        .myloc-info{flex:1} 
-        .map-thumb{width:110px;height:110px;border-radius:8px;object-fit:cover;border:1px solid #e5e7eb} 
-        .card{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.04);margin-bottom:10px;transition:transform .1s,background .2s} 
-        .card:hover{background:#f9fafb;transform:translateY(-1px)} 
-        .nav-btn{display:inline-block;margin-top:6px;padding:6px 10px;background:#17a2b8;color:#fff;text-decoration:none;border-radius:8px;font-size:13px; transition: background-color 0.2s;}
-        .nav-btn:hover { background-color: #117a8b;}
-        .mode-switch{display:flex;gap:8px;justify-content:flex-end;margin:8px 0} 
-        .loading{display:inline-block; width: 1.2em; height: 1.2em; border: 3px solid rgba(13, 110, 253, 0.3); border-radius: 50%; border-top-color: #0d6efd; animation: spin 1s ease-in-out infinite; margin-right: 8px; vertical-align: middle;}
-        @keyframes spin { to { transform: rotate(360deg); } } 
-        #mapWrap{display:none;height:420px;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden; margin-top: 10px;} 
-        #map{width:100%;height:100%} 
-        ul{list-style:none;margin:0;padding:0}
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>查找附近設施 (B++++++ 智慧互動清單版)</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; margin: 0; padding: 20px; background: #f4f4f9; color: #333; }
+    .container { max-width: 760px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 18px rgba(0,0,0,.08); }
+    h2 { text-align: center; margin-bottom: 14px; }
+    .controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    select, .btn { padding: 12px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 15px; }
+    select { flex: 1; }
+    .btn { cursor: pointer; font-weight: 700; transition: opacity .2s; }
+    .btn:active { opacity: 0.8; }
+    .btn-primary { background: #0d6efd; color: #fff; border: none; }
+    .btn-success { background: #28a745; color: #fff; border: none; }
+    .btn-toggle { background: #111827; color: #fff; border: none; }
+    .brand-tag { display: inline-block; padding: 2px 6px; border-radius: 6px; font-size: 12px; font-weight: 600; color: white; margin-bottom: 4px; }
+    #status { margin: 10px 0 6px; text-align: center; color: #6b7280; font-style: italic; }
+    .card { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 14px; border-radius: 12px; border: 1px solid #e5e7eb; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.04); margin-bottom: 10px; transition: transform .1s; }
+    .card:hover { transform: translateY(-2px); }
+    .map-thumb { width: 110px; height: 110px; border-radius: 10px; object-fit: cover; border: 1px solid #e5e7eb; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+    .nav-btn { display: inline-block; margin-top: 6px; padding: 6px 10px; background: #17a2b8; color: #fff; text-decoration: none; border-radius: 8px; font-size: 13px; }
+    #mapWrap { display: none; height: 420px; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
+    #map { width: 100%; height: 100%; }
+    .mode-switch { text-align: right; margin-bottom: 8px; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h2>查找附近設施 (優化版)</h2>
-        <div class="controls">
-            <div class="row">
-                <select id="radiusSelect" title="選擇搜尋半徑">
-                    <option value="2">2 公里內</option>
-                    <option value="5" selected>5 公里內</option>
-                    <option value="10">10 公里內</option>
-                    <option value="9999">不限距離</option>
-                </select>
-                <button id="searchPolice" class="btn btn-primary" style="flex:1" disabled>找最近的警察局</button>
-                <button id="searchStore"  class="btn btn-success" style="flex:1" disabled>找最近的便利商店</button>
-            </div>
-            <div class="mode-switch">
-                <button id="toggleList" class="btn btn-toggle active" disabled>清單模式</button>
-                <button id="toggleMap"  class="btn btn-toggle" disabled>地圖模式</button>
-            </div>
-        </div>
+  <div class="container">
+    <h2>查找附近設施 (B++++++ 智慧互動清單版)</h2>
 
-        <div id="myLoc" class="my-location" style="display:none;">
-            <div class="myloc-info">
-                <div style="font-weight:700">我的位置</div>
-                <div id="mylocAdmin" style="color:#4b5563">定位中…</div>
-                <div id="coords"></div>
-                <button id="relocate" class="btn btn-ghost" disabled>重新定位</button>
-            </div>
-            <img id="myLocMap" class="map-thumb" alt="我的位置地圖" />
-        </div>
-
-        <div id="status">正在初始化應用...</div>
-        <div id="count" style="font-size:13px;color:#6b7280;text-align:center;margin-bottom:8px"></div>
-        <div id="mapWrap"><div id="map"></div></div>
-        <ul id="results"></ul>
+    <div class="controls">
+      <div class="row">
+        <select id="brandSelect">
+          <option value="全部">全部品牌</option>
+          <option value="7-ELEVEN">7-ELEVEN</option>
+          <option value="全家">全家</option>
+          <option value="全聯">全聯</option>
+          <option value="萊爾富">萊爾富</option>
+          <option value="來來">來來</option>
+        </select>
+        <button id="searchStore" class="btn btn-success" style="flex:1">找便利商店</button>
+        <button id="searchPolice" class="btn btn-primary" style="flex:1">找警察局</button>
+      </div>
     </div>
 
-    <script>
-        // --- 設定 ---
-        // 【【【關鍵！！！】】】 請務必將此處換成您 ngrok 或 Render 的公開 HTTPS 網址
-        const BACKEND_API_BASE_URL = "【請填入您 ngrok 或 Render 的公開 HTTPS 網址】"; 
-        // 【【【關鍵！！！】】】 請務必將此處換成指向此 nearby.html 的 LIFF ID
-        const LIFF_ID = "【請貼上查找設施的LIFF_ID】"; 
+    <div class="mode-switch">
+      <button id="toggleMap" class="btn btn-toggle">切換地圖模式</button>
+    </div>
 
-        // --- 全域變數 ---
-        let GOOGLE_KEY = "";
-        let CURRENT_POS = null; // {lat: number, lng: number} | null
-        let MAP, MARKERS = [], MAP_LOADED = false, MAP_INSTANCE_CREATED = false;
-        let CURRENT_RESULTS = []; // 儲存目前的搜尋結果
-        let CURRENT_MODE = "list"; // 'list' 或 'map'
+    <div id="status">請選擇要搜尋的項目。</div>
+    <div id="mapWrap"><div id="map"></div></div>
+    <ul id="results"></ul>
+  </div>
 
-        // --- DOM 元素快取 (提高效能) ---
-        const statusDiv = document.getElementById("status");
-        const countDiv = document.getElementById("count");
-        const resultsUl = document.getElementById("results");
-        const mapWrapDiv = document.getElementById("mapWrap");
-        const myLocDiv = document.getElementById("myLoc");
-        const mylocAdminDiv = document.getElementById("mylocAdmin");
-        const coordsDiv = document.getElementById("coords");
-        const myLocMapImg = document.getElementById("myLocMap");
-        const radiusSelect = document.getElementById("radiusSelect");
-        const searchPoliceBtn = document.getElementById("searchPolice");
-        const searchStoreBtn = document.getElementById("searchStore");
-        const toggleListBtn = document.getElementById("toggleList");
-        const toggleMapBtn = document.getElementById("toggleMap");
-        const relocateBtn = document.getElementById("relocate");
+  <script>
+    // Render 版：固定後端主機
+    const BACKEND = "https://line-bot-system.onrender.com";
+    let GOOGLE_KEY = "", MAP, MARKERS = [], CURRENT_RESULTS = [], MAP_LOADED = false, CURRENT_POS = null, CURRENT_MODE = "list";
 
-        // --- 核心功能 ---
-        async function fetchKey(){
-            try { 
-                // 確保後端網址已設定
-                if (!BACKEND_API_BASE_URL || BACKEND_API_BASE_URL.startsWith("【請填入")) {
-                     throw new Error("後端 API 位址尚未正確設定於前端程式碼中");
-                }
-                const r = await fetch(`${BACKEND_API_BASE_URL}/api/config`); 
-                if (!r.ok) throw new Error(`無法連接後端設定 API (HTTP ${r.status})`); 
-                const data = await r.json();
-                GOOGLE_KEY = data.GOOGLE_MAPS_API_KEY || ""; 
-                // 移除非法字元或空字串，確保金鑰有效
-                // 修正: 允許空字串，但在需要金鑰的地方檢查
-                if (typeof GOOGLE_KEY !== 'string' ) { // || !/^[a-zA-Z0-9_-]*$/.test(GOOGLE_KEY)) { 
-                     GOOGLE_KEY = "";
-                     console.warn("後端提供的 Google API Key 格式無效。");
-                }
-                if (!GOOGLE_KEY) console.warn("後端未提供 Google API Key，地圖相關功能可能受限。");
-                else console.log("✅ Google Key OK"); 
-            } catch (err) { 
-                console.error("❌ fetchKey fail:", err); 
-                statusDiv.textContent = `❌ 無法取得後端設定: ${err.message}`; 
-                disableAllButtons(true); 
-                throw err; // 拋出錯誤，中斷後續初始化
-            }
+    const brandColors = {
+      "7-ELEVEN": "#2E8B57",
+      "全家": "#1E90FF",
+      "全聯": "#800080",
+      "萊爾富": "#FF4500",
+      "來來": "#FF8C00",
+      "警察局": "#0d6efd",
+      "其他": "#6b7280"
+    };
+
+    async function fetchKey() {
+      const r = await fetch(`${BACKEND}/api/config`);
+      const { GOOGLE_MAPS_API_KEY } = await r.json();
+      GOOGLE_KEY = GOOGLE_MAPS_API_KEY || "";
+    }
+
+    function staticMap(lat, lng, color = "red", size = "300x200", zoom = 16) {
+      return `https://maps.googleapis.com/maps/api/staticmap`
+             + `?center=${lat},${lng}`
+             + `&zoom=${zoom}`
+             + `&size=${size}`
+             + `&scale=2`
+             + `&maptype=roadmap`
+             + `&markers=color:${encodeURIComponent(color)}%7C${lat},${lng}`
+             + `&key=${GOOGLE_KEY}`;
+    }
+
+    function getGeolocation() {
+      return new Promise((res, rej) => {
+        if (!navigator.geolocation) return rej(new Error("無法定位"));
+        navigator.geolocation.getCurrentPosition(
+          p => res({ lat: p.coords.latitude, lng: p.coords.longitude }),
+          () => rej(new Error("定位失敗"))
+        );
+      });
+    }
+
+    async function loadGoogleMapsJS() {
+      return new Promise((resolve, reject) => {
+        if (MAP_LOADED) return resolve();
+        const s = document.createElement("script");
+        s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}`;
+        s.onload = () => { MAP_LOADED = true; resolve(); };
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    async function findNearby(type) {
+      const status = document.getElementById("status");
+      status.textContent = "📍 定位中...";
+      document.getElementById("results").innerHTML = "";
+      const brand = document.getElementById("brandSelect").value;
+
+      try {
+        const pos = await getGeolocation();
+        CURRENT_POS = pos;
+        status.textContent = "🔍 搜尋中...";
+        const url = `${BACKEND}/api/nearby?lat=${pos.lat}&lng=${pos.lng}&type=${type}&brand=${encodeURIComponent(brand)}&limit=10`;
+        const r = await fetch(url);
+        const data = await r.json();
+        CURRENT_RESULTS = data;
+        if (!data.length) { status.innerHTML = "❌ <i>沒有找到符合的地點</i>"; return; }
+        if (CURRENT_MODE === "list") renderList(data); else renderMap(data);
+        status.textContent = `共 ${data.length} 筆結果（${type === "police" ? "警察局" : brand}）`;
+      } catch (e) {
+        console.error(e);
+        status.textContent = "❌ 查詢失敗，請稍後再試";
+      }
+    }
+
+    function renderList(data) {
+      document.getElementById("mapWrap").style.display = "none";
+      const ul = document.getElementById("results");
+      ul.innerHTML = "";
+      data.forEach(p => {
+        const color = brandColors[p.brand || "其他"] || "#6b7280";
+        const li = document.createElement("li");
+        li.className = "card";
+        li.innerHTML = `
+          <div style="flex:1">
+            <span class="brand-tag" style="background:${color}">${p.brand || "其他"}</span><br>
+            <strong>${p.name}</strong><br>
+            <small>${p.address}</small><br>
+            <small style="color:#6b7280">距離您約 ${p.distance.toFixed(2)} 公里</small><br>
+            <a href="https://www.google.com/maps?q=${p.lat},${p.lng}" target="_blank" class="nav-btn">導航</a>
+          </div>
+          <img class="map-thumb" loading="lazy" src="${staticMap(p.lat, p.lng, color)}" alt="地圖預覽">
+        `;
+        ul.appendChild(li);
+      });
+    }
+
+    async function renderMap(data) {
+      document.getElementById("mapWrap").style.display = "block";
+      await loadGoogleMapsJS();
+      if (!MAP) {
+        MAP = new google.maps.Map(document.getElementById("map"), {
+          center: CURRENT_POS || { lat: 25.04, lng: 121.51 },
+          zoom: 13,
+          mapTypeControl: false
+        });
+      }
+      (MARKERS || []).forEach(m => m.setMap(null));
+      MARKERS = [];
+      const bounds = new google.maps.LatLngBounds();
+      data.forEach(p => {
+        const color = brandColors[p.brand || "其他"] || "#6b7280";
+        const marker = new google.maps.Marker({
+          position: { lat: p.lat, lng: p.lng },
+          map: MAP,
+          title: `${p.brand || ""} ${p.name}`,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: color,
+            fillOpacity: 1,
+            strokeColor: "#fff",
+            strokeWeight: 2
+          }
+        });
+        MARKERS.push(marker);
+        bounds.extend(marker.getPosition());
+      });
+      if (CURRENT_POS) {
+        const you = new google.maps.Marker({
+          position: CURRENT_POS,
+          map: MAP,
+          title: "我的位置",
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: "#2563eb",
+            fillOpacity: 1,
+            strokeColor: "#fff",
+            strokeWeight: 2
+          }
+        });
+        MARKERS.push(you);
+        bounds.extend(you.getPosition());
+      }
+      MAP.fitBounds(bounds);
+    }
+
+    async function main() {
+      await fetchKey();
+      try { await liff.init({ liffId: "2008106671-RMxabbaV" }); } catch {}
+      document.getElementById("searchStore").addEventListener("click", () => findNearby("store"));
+      document.getElementById("searchPolice").addEventListener("click", () => findNearby("police"));
+      document.getElementById("toggleMap").addEventListener("click", () => {
+        CURRENT_MODE = CURRENT_MODE === "list" ? "map" : "list";
+        if (CURRENT_RESULTS.length) {
+          CURRENT_MODE === "list" ? renderList(CURRENT_RESULTS) : renderMap(CURRENT_RESULTS);
         }
+      });
+    }
 
-        function staticMap(lat,lng,pin="red",size="150x150",zoom=16){
-             if (!GOOGLE_KEY) return "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"; // 返回透明像素
-             // 確保 lat, lng 是數字
-             lat = parseFloat(lat); lng = parseFloat(lng);
-             if (isNaN(lat) || isNaN(lng)) return "";
-             return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=${zoom}&size=${size}&maptype=roadmap&markers=color:${pin}%7C${lat},${lng}&key=${GOOGLE_KEY}`;
-        }
-
-        function loadGoogleMapsJS(){
-            if (MAP_LOADED || !GOOGLE_KEY) return Promise.resolve(); 
-            return new Promise((resolve,reject)=>{ 
-                console.log("⏳ Loading Google Maps JS..."); 
-                const s = document.createElement("script"); 
-                s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=marker&language=zh-TW`; 
-                s.async = true; s.defer = true; 
-                s.onload = ()=>{ MAP_LOADED = true; console.log("✅ Google Maps JS OK"); resolve(); }; 
-                s.onerror = (err)=>{ console.error("❌ Google Maps JS fail:", err); statusDiv.textContent = "❌ 無法載入地圖元件"; reject(err); }; 
-                document.head.appendChild(s); 
-            });
-        }
-
-        function getGeolocation(forceRefresh = false){
-             return new Promise((resolve,reject)=>{ 
-                if (CURRENT_POS && !forceRefresh) { console.log("ℹ️ Using cached location"); return resolve(CURRENT_POS); } 
-                if (!navigator.geolocation) return reject(new Error("您的裝置不支援定位功能")); 
-                statusDiv.innerHTML = '<span class="loading"></span>📍 正在取得您的位置… (請允許授權)'; 
-                navigator.geolocation.getCurrentPosition( 
-                    pos => { CURRENT_POS = {lat:pos.coords.latitude,lng:pos.coords.longitude}; console.log("✅ Geolocation OK:", CURRENT_POS); resolve(CURRENT_POS); }, 
-                    err => { console.error("❌ Geolocation fail:", err); const m = {1:"您拒絕了定位授權",2:"無法根據網路或GPS判斷位置",3:"定位超時"}; reject(new Error(m[err.code]||"定位失敗，請確認手機設定")); }, 
-                    {enableHighAccuracy:true,timeout:15000,maximumAge:0} 
-                ); 
-            });
-        }
-
-        async function reverseGeocode(lat,lng){
-            // 避免在沒有 Key 的情況下呼叫
-            if (!GOOGLE_KEY) return "地址服務未就緒"; 
-            // 優化: 只有在需要更新時才呼叫
-            if (mylocAdminDiv.textContent && !mylocAdminDiv.textContent.includes("…")) return mylocAdminDiv.textContent; 
-            
-            try{ 
-                const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&language=zh-TW&result_type=administrative_area_level_1|administrative_area_level_2|administrative_area_level_3|locality|sublocality_level_1|route|neighborhood&key=${GOOGLE_KEY}`; 
-                const r = await fetch(url); 
-                if (!r.ok) throw new Error("Geocode HTTP "+r.status); 
-                const j = await r.json(); 
-                if(j.status!=="OK" || !j.results?.length) return "地址不詳"; 
-                const comps = j.results[0].address_components; 
-                const g = t => comps.find(c=>c.types.includes(t))?.long_name || ""; 
-                const route = g("route"); const neighborhood = g("neighborhood"); const sublocality = g("sublocality_level_1") || g("administrative_area_level_3") || g("locality"); const city = g("administrative_area_level_1") || g("administrative_area_level_2"); 
-                let formattedAddress = city; if (sublocality && sublocality !== city) formattedAddress += ` ${sublocality}`; if (neighborhood) formattedAddress += ` ${neighborhood}`; 
-                // 改為顯示路名，若無則顯示區域
-                if (route) formattedAddress += ` ${route} 附近`; 
-                else if (neighborhood) {} // 已加入
-                else if (sublocality) {} // 已加入
-                
-                return formattedAddress || j.results[0].formatted_address || "地址不詳"; 
-            } catch (err) { console.error("❌ Reverse Geocode fail:", err); return "無法取得地址資訊"; }
-        }
-
-        async function renderMyLocation(pos){
-            myLocDiv.style.display="flex"; 
-            coordsDiv.textContent = `(${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)})`; 
-            const staticMapUrl = staticMap(pos.lat,pos.lng,"blue","220x220",15);
-            myLocMapImg.src = staticMapUrl; // 直接設定，若 staticMapUrl 為空則不顯示
-            if (!staticMapUrl) myLocMapImg.alt = "地圖預覽 (需 API Key)"; // 提供替代文字
-            mylocAdminDiv.textContent = "正在解析地址…"; 
-            const txt = await reverseGeocode(pos.lat,pos.lng); 
-            mylocAdminDiv.textContent = txt;
-        }
-
-        function renderList(results){
-            resultsUl.innerHTML = ""; mapWrapDiv.style.display = "none"; 
-            if (!results || !results.length) return; 
-            results.forEach(p=>{ 
-                const li = document.createElement("li"); li.className="card"; 
-                const mapUrl = staticMap(p.lat,p.lng,"red","180x120",16); 
-                // 【【【已修正 $ 符號】】】
-                const navLink = `https://www.google.com/maps?q=${p.lat},${p.lng}`; 
-                li.innerHTML = `<div class="info" style="flex:1"><strong>${p.name}</strong><br><small style="color:#4b5563">${p.address}</small><br><small style="color:#6b7280">距離您約 ${p.distance.toFixed(2)} 公里</small><br><a class="nav-btn" href="${navLink}" target="_blank" rel="noopener">前往導航</a></div>${mapUrl ? `<img class="map-thumb" src="${mapUrl}" alt="地圖預覽" loading="lazy">` : ''}`; 
-                resultsUl.appendChild(li); 
-            }); 
-            CURRENT_MODE = "list"; updateToggleButtons();
-        }
-
-        async function renderMap(results){
-            resultsUl.innerHTML = ""; 
-            try { await loadGoogleMapsJS(); } catch (err) { statusDiv.textContent = "❌ 無法載入地圖元件"; return; } 
-            mapWrapDiv.style.display = "block"; 
-            if (!MAP_INSTANCE_CREATED){ 
-                try {
-                    MAP = new google.maps.Map(document.getElementById("map"), { center: CURRENT_POS || {lat:25.0479,lng:121.5170}, zoom: 13, mapTypeControl:false, streetViewControl: false }); 
-                    MAP_INSTANCE_CREATED = true; 
-                    console.log("✅ Google Map instance created");
-                } catch (mapErr) {
-                     console.error("❌ 無法建立 Google Map 實例:", mapErr);
-                     statusDiv.textContent = "❌ 無法建立地圖，請確認 Google API Key 是否有效。";
-                     mapWrapDiv.style.display = "none"; // 隱藏地圖區域
-                     return; // 中斷執行
-                }
-            } 
-            MARKERS.forEach(m=>m.setMap(null)); MARKERS = []; 
-            const bounds = new google.maps.LatLngBounds(); 
-            results.forEach(p=>{ 
-                const marker = new google.maps.Marker({position:{lat:p.lat,lng:p.lng}, map:MAP, title:p.name}); 
-                const infowindow = new google.maps.InfoWindow(); 
-                marker.addListener('click', () => { 
-                    // 【【【已修正 $ 符號】】】
-                    const navLink = `https://www.google.com/maps?q=${p.lat},${p.lng}`; 
-                    const content = `<strong>${p.name}</strong><br>${p.address}<br><small>距離約 ${p.distance.toFixed(2)} km</small><br><br><a href="${navLink}" target="_blank" rel="noopener">導航到這裡</a>`; 
-                    infowindow.setContent(content); infowindow.open(MAP, marker); 
-                }); 
-                MARKERS.push(marker); bounds.extend(marker.getPosition()); 
-            }); 
-            if (CURRENT_POS){ 
-                const you = new google.maps.Marker({ position: CURRENT_POS, map: MAP, title: "我的位置", icon: {path: google.maps.SymbolPath.CIRCLE, scale:8, fillColor:"#2563eb", fillOpacity:1, strokeWeight:2, strokeColor:"#fff"} }); 
-                MARKERS.push(you); bounds.extend(you.getPosition()); 
-            } 
-            if (results.length > 0 || CURRENT_POS) { 
-                 // 延遲 fitBounds 確保地圖已渲染
-                 setTimeout(() => {
-                      if (MAP && bounds && !bounds.isEmpty()) {
-                          MAP.fitBounds(bounds); 
-                          google.maps.event.addListenerOnce(MAP, 'idle', function() { 
-                              let currentZoom = MAP.getZoom();
-                              // 限制最大和最小縮放級別
-                              const maxZoom = 17; 
-                              const minZoom = 3;
-                              if (currentZoom > maxZoom) MAP.setZoom(maxZoom);
-                              else if (currentZoom < minZoom) MAP.setZoom(minZoom);
-                              
-                              // 單點優化
-                              if (results.length === 1 && CURRENT_POS && MAP.getZoom() > 16) MAP.setZoom(16); 
-                              else if (results.length === 0 && CURRENT_POS && MAP.getZoom() < 15) MAP.setZoom(15); 
-                          }); 
-                      } else {
-                           console.warn("Bounds are empty or Map not ready for fitBounds");
-                      }
-                 }, 100); // 延遲 100ms
-
-            } 
-            CURRENT_MODE = "map"; updateToggleButtons();
-        }
-
-        async function findNearby(type, forceRefreshLocation = false){
-            disableAllButtons(true); resultsUl.innerHTML=""; mapWrapDiv.style.display="none"; countDiv.textContent = ""; 
-            try{ 
-                const pos = await getGeolocation(forceRefreshLocation); 
-                await renderMyLocation(pos.lat,pos.lng); 
-                statusDiv.innerHTML = '<span class="loading"></span>🔍 正在從後端搜尋附近地點…'; 
-                const radius = parseFloat(radiusSelect.value); 
-                const params = new URLSearchParams({ lat: pos.lat, lng: pos.lng, type: type, limit: 50 }); 
-                if (!BACKEND_API_BASE_URL || BACKEND_API_BASE_URL.startsWith("【請填入")) throw new Error("後端 API 位址尚未正確設定"); 
-                const apiUrl = `${BACKEND_API_BASE_URL}/api/nearby?${params.toString()}`; 
-                console.log("FETCH:", apiUrl); 
-                const r = await fetch(new URL(apiUrl)); 
-                if(!r.ok) { let eData={message:`HTTP ${r.status}`}; try{eData=await r.json();}catch{} throw new Error(eData.error || eData.message || `HTTP ${r.status}`); } 
-                let data = await r.json(); 
-                console.log(`RECV ${data.length} results`); 
-                data = data.filter(p=> (radius === 9999) || (p.distance <= radius)); 
-                console.log(`FILTERED ${data.length} results`); 
-                CURRENT_RESULTS = data; 
-                if(!data.length){ statusDiv.textContent = `⚠️ ${radius===9999 ? "附近沒有符合的資料" : `${radius} 公里內沒有符合的地點`}`; return; } 
-                statusDiv.textContent = `以下是 ${radius===9999 ? "搜尋到的" : `${radius} 公里內`} ${type==="police"?"警察局":"便利商店"}：`; 
-                countDiv.textContent = `共 ${data.length} 筆結果（已依距離排序）`; 
-                if (CURRENT_MODE === "map") { renderMap(data); } 
-                else { renderList(data); } 
-            } catch(e) { 
-                console.error("❌ FindNearby fail:", e); 
-                statusDiv.textContent = `❌ 查詢失敗：${e.message}`; 
-            } finally { 
-                 disableAllButtons(false); 
-                 toggleListBtn.disabled = !CURRENT_RESULTS.length; 
-                 toggleMapBtn.disabled = !CURRENT_RESULTS.length; 
-            }
-        }
-
-        // --- 輔助函式 ---
-        function disableAllButtons(disabled) {
-            searchPoliceBtn.disabled = disabled; searchStoreBtn.disabled = disabled;
-            toggleListBtn.disabled = disabled || !CURRENT_RESULTS.length;
-            toggleMapBtn.disabled = disabled || !CURRENT_RESULTS.length;
-            relocateBtn.disabled = disabled;
-        }
-
-        function updateToggleButtons() {
-             const isList = CURRENT_MODE === "list";
-             toggleListBtn.classList.toggle('active', isList);
-             toggleMapBtn.classList.toggle('active', !isList);
-        }
-
-        // --- 初始化流程 ---
-        async function initializeApp() {
-            disableAllButtons(true); // 先禁用
-            try {
-                statusDiv.textContent = '正在取得後端設定...';
-                await fetchKey(); // 1. 取得 Key
-
-                // 2. 動態載入 Google Maps (非同步)
-                loadGoogleMapsJS().catch(err => { 
-                     console.warn("Google Maps JS 可能載入失敗，地圖模式將無法使用。");
-                     toggleMapBtn.disabled = true; // 禁用 Map 按鈕
-                });
-
-                statusDiv.textContent = '正在初始化 LIFF...';
-                // 3. 初始化 LIFF
-                // 【【【關鍵！！！】】】 確保 LIFF_ID 已正確填寫！
-                if (!LIFF_ID || LIFF_ID.startsWith("【請貼上")) throw new Error("LIFF ID 尚未正確設定於前端程式碼中");
-                await liff.init({ liffId: LIFF_ID }); 
-                
-                if (liff.isLoggedIn()) {
-                    statusDiv.textContent = '初始化完成，正在嘗試自動定位...';
-                    // 4. 嘗試初始定位
-                    try {
-                        const initialPos = await getGeolocation();
-                        await renderMyLocation(initialPos);
-                        statusDiv.textContent = '定位完成，請選擇要搜尋的項目。';
-                    } catch (locErr) {
-                         statusDiv.textContent = `⚠️ 無法自動定位：${locErr.message} 請手動點擊搜尋按鈕。`;
-                    }
-                    
-                    // 5. 啟用按鈕
-                    searchPoliceBtn.disabled = false;
-                    searchStoreBtn.disabled = false; // 便利商店按鈕也啟用
-                    relocateBtn.disabled = false;
-                    toggleListBtn.disabled = true; // 初始禁用切換
-                    toggleMapBtn.disabled = true;
-                    updateToggleButtons(); // 更新樣式
-
-                    // 6. 綁定事件
-                    searchPoliceBtn.addEventListener("click", ()=> findNearby("police"));
-                    // 【啟用】便利商店按鈕實際呼叫 type=store
-                    searchStoreBtn.addEventListener("click", ()=> findNearby("store"));                     
-                    
-                    toggleMapBtn.addEventListener("click", ()=> { if (!CURRENT_RESULTS.length || CURRENT_MODE === "map") return; renderMap(CURRENT_RESULTS); });
-                    toggleListBtn.addEventListener("click", ()=> { if (!CURRENT_RESULTS.length || CURRENT_MODE === "list") return; renderList(CURRENT_RESULTS); });
-                    // 【優化】重新定位後，搜尋上次選定的類型
-                    relocateBtn.addEventListener("click", ()=> {
-                        // 判斷上次搜尋類型，若無則預設 police
-                        const lastSearchType = CURRENT_RESULTS.length > 0 ? (CURRENT_RESULTS[0].brand === '警察局' ? 'police' : 'store') : 'police';
-                        findNearby(lastSearchType, true); // 強制刷新位置並搜尋
-                    });
-
-                } else { // 未登入
-                     statusDiv.textContent = '請先登入 LINE 以使用完整功能。';
-                     disableAllButtons(true); 
-                     // 【優化】登入後重新導向回同一頁面
-                     liff.login({ redirectUri: location.href }); 
-                }
-            } catch (err) { // 處理 fetchKey 或 liff.init 的失敗
-                console.error('❌ 應用初始化失敗:', err);
-                statusDiv.textContent = `❌ 應用初始化失敗：${err.message}`;
-                disableAllButtons(true); 
-            }
-        }
-        
-        // 執行初始化
-        initializeApp();
-        
-    </script>
-    </body>
+    main();
+  </script>
+</body>
 </html>
