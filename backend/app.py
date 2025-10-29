@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import os, math, csv, json, requests
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, redirect
 from flask_cors import CORS
 
 # ---------------------------
@@ -17,7 +17,7 @@ STORES_CSV = os.path.join(DATA_DIR, "stores.csv")
 STORES_TAIPEI_CSV = os.path.join(DATA_DIR, "stores_taipei.csv")
 GEOCODE_CACHE_FILE = os.path.join(DATA_DIR, "geocode_cache.json")
 
-GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "AIzaSyBTRKrO8LFhHARu7rHAXzpXe7DfM0Ypn1g")
+GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 GEOCODING_API_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 TAIPEI_POLICE_API_URL = "https://data.taipei/api/v1/dataset/a90ae184-c39e-4242-b2d6-d7a0403c0632?scope=resourceAquire"
 
@@ -35,7 +35,7 @@ def get_distance(lat1, lon1, lat2, lon2):
         dLon = math.radians(lon2 - lon1)
         a = math.sin(dLat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLon / 2)**2
         return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    except:
+    except Exception:
         return float("inf")
 
 def normalize_text(t: str) -> str:
@@ -58,7 +58,7 @@ def save_cache():
         json.dump(GEO_CACHE, f, ensure_ascii=False, indent=2)
 
 # ---------------------------
-# 智慧 Geocode（最準確版本）
+# 智慧 Geocode（台灣限定）
 # ---------------------------
 def geocode(address: str):
     """智慧化 Geocode（含快取、清理樓層、重試、台灣限定）"""
@@ -98,17 +98,7 @@ def geocode(address: str):
             print(f"❌ Geocode error: {addr} => {e}")
         return None
 
-    # Step 3: 先試原始 → 再試簡化
-    coords = query_google(address)
-    if not coords:
-        coords = query_google(clean)
-        if coords:
-            print(f"✅ 簡化後成功: {address} → {clean} → {coords}")
-        else:
-            print(f"⚠️ 仍失敗: {address} → {clean}")
-    else:
-        print(f"✅ Geocode 成功: {address} → {coords}")
-
+    coords = query_google(address) or query_google(clean)
     GEO_CACHE[address] = coords
     save_cache()
     return coords
@@ -153,7 +143,7 @@ def ensure_taipei_stores():
 
     out_rows = []
     limit = len(rows) if not TAIPEI_BUILD_LIMIT else min(TAIPEI_BUILD_LIMIT, len(rows))
-    for i, r in enumerate(rows[:limit]):
+    for r in rows[:limit]:
         coords = geocode(r["address"])
         if coords:
             out_rows.append({
@@ -212,6 +202,11 @@ TAIPEI_STORES = load_taipei_stores()
 # ---------------------------
 # API 路由
 # ---------------------------
+@app.route("/")
+def root_redirect():
+    # 首頁自動導向 nearby.html
+    return redirect("/nearby.html", code=302)
+
 @app.route("/api/nearby")
 def api_nearby():
     lat = request.args.get("lat")
@@ -237,14 +232,14 @@ def api_nearby():
             if brand_filter and brand_filter != "全部" and it["brand"] != brand_filter:
                 continue
             dist = get_distance(lat, lng, it["lat"], it["lng"])
-            if dist > 30:  # 過遠略過
+            if dist > 30:
                 continue
             results.append({
                 "brand": it["brand"], "name": it["name"], "address": it["address"],
                 "lat": it["lat"], "lng": it["lng"], "distance": round(dist, 2)
             })
     results.sort(key=lambda x: x["distance"])
-    return jsonify(results[:min(limit, 20)])
+    return jsonify(results[:limit])
 
 @app.route("/api/brands")
 def api_brands():
@@ -271,5 +266,6 @@ def serve_nearby():
 # 啟動伺服器
 # ---------------------------
 if __name__ == "__main__":
-    print("🚀 啟動 Guardian Light 後端（最準確地理版本）")
-    app.run(debug=True, host="0.0.0.0", port=5001)
+    print("🚀 啟動 Guardian Light 後端（Render 版）")
+    port = int(os.environ.get("PORT", 5001))
+    app.run(debug=False, host="0.0.0.0", port=port)
