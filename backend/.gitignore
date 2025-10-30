@@ -1,4 +1,5 @@
 data/
 __pycache__/
 *.pyc
-!backend/public/data/police.json
+!public/data/
+!public/data/police.json
