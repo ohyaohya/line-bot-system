@@ -185,17 +185,18 @@ def load_taipei_stores():
     return stores
 
 def load_police():
+    """從本地檔載入警察局資料（Render 雲端版本）"""
     local_file = os.path.join(DATA_DIR, "police.json")
     try:
-        r = requests.get(TAIPEI_POLICE_API_URL, timeout=10)
-        r.raise_for_status()
-        data = r.json()
-        lst = data.get("result", {}).get("results", [])
-        print(f"✅ 警察局資料載入：{len(lst)} 筆")
-        return lst
+        with open(local_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            lst = data.get("result", {}).get("results", [])
+            print(f"✅ 本地警察局資料載入：{len(lst)} 筆")
+            return lst
     except Exception as e:
-        print(f"⚠️ 載入警察局資料失敗：{e}")
+        print(f"⚠️ 無法載入本地 police.json：{e}")
         return []
+
 
 POLICE_DATA = load_police()
 TAIPEI_STORES = load_taipei_stores()
