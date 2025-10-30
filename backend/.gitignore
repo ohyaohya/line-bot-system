@@ -1,5 +1,7 @@
-data/
 __pycache__/
 *.pyc
+
+# 忽略 data 但保留 public/data/police.json
+data/
 !public/data/
 !public/data/police.json
