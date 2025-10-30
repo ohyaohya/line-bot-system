@@ -1,0 +1,8 @@
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+
+# Ignore data folders globally, except police.json
+data/
+!backend/public/data/
+!backend/public/data/police.json
