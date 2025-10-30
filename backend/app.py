@@ -185,6 +185,7 @@ def load_taipei_stores():
     return stores
 
 def load_police():
+    local_file = os.path.join(DATA_DIR, "police.json")
     try:
         r = requests.get(TAIPEI_POLICE_API_URL, timeout=10)
         r.raise_for_status()
