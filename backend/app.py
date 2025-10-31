@@ -215,43 +215,72 @@ def api_nearby():
     lat = request.args.get("lat")
     lng = request.args.get("lng")
     tp = (request.args.get("type") or "").strip().lower()
-    brand_filter = request.args.get("brand", "")
+    brand_filter = normalize_text(request.args.get("brand", ""))  # ✅ 標準化品牌名稱
     limit = int(request.args.get("limit", 10))
+
     results = []
 
+    # --- 明確分支 ---
     if tp == "police":
         print("🚓 查詢警察局資料中...")
         for it in POLICE_DATA:
             name = it.get("name", "")
             addr = it.get("poi_addr") or it.get("display_addr")
             coords = geocode(addr)
-            if not coords: continue
+            if not coords:
+                continue
             dist = get_distance(lat, lng, coords["lat"], coords["lng"])
-            results.append({"brand": "警察局", "name": name, "address": addr, "lat": coords["lat"], "lng": coords["lng"], "distance": round(dist, 2)})
+            results.append({
+                "brand": "警察局",
+                "name": name,
+                "address": addr,
+                "lat": coords["lat"],
+                "lng": coords["lng"],
+                "distance": round(dist, 2)
+            })
+
     elif tp == "store":
         print("🏪 查詢便利商店資料中...")
         for it in TAIPEI_STORES:
-        # 新增除錯輸出
+            # 標準化品牌名稱，避免全形／大小寫問題
+            b = normalize_text(it["brand"])
+
+            # 限定品牌
             if brand_filter and brand_filter != "全部":
-              print(f"🔎 比對品牌: {it['brand']} vs {brand_filter}")
-            if normalize_text(it["brand"]) != normalize_text(brand_filter):
-                continue
+                if b != brand_filter:
+                    print(f"🔎 比對品牌: {it['brand']} vs {brand_filter} ❌")
+                    continue
+                else:
+                    print(f"✅ 比對品牌: {it['brand']} vs {brand_filter} ✅")
 
             dist = get_distance(lat, lng, it["lat"], it["lng"])
-            if dist > 30: continue
-            results.append({"brand": it["brand"], "name": it["name"], "address": it["address"], "lat": it["lat"], "lng": it["lng"], "distance": round(dist, 2)})
-        if not results:
-            fallback = []
-            for it in TAIPEI_STORES:
-                dist = get_distance(lat, lng, it["lat"], it["lng"])
-                it["distance"] = round(dist, 2)
-                fallback.append(it)
-            fallback.sort(key=lambda x: x["distance"])
-            results = fallback[:10]
+            if dist > 30:
+                continue
+            results.append({
+                "brand": it["brand"],
+                "name": it["name"],
+                "address": it["address"],
+                "lat": it["lat"],
+                "lng": it["lng"],
+                "distance": round(dist, 2)
+            })
     else:
         return jsonify({"error": "未知的 type 類別，請使用 'store' 或 'police'"})
+
+    # --- 結果排序 + 保底處理 ---
     results.sort(key=lambda x: x["distance"])
+    if not results and tp == "store":
+        print("⚠️ 找不到符合條件的店，回傳台北市最近10間（保底）")
+        fallback = []
+        for it in TAIPEI_STORES:
+            dist = get_distance(lat, lng, it["lat"], it["lng"])
+            it["distance"] = round(dist, 2)
+            fallback.append(it)
+        fallback.sort(key=lambda x: x["distance"])
+        results = fallback[:10]
+
     return jsonify(results[:limit])
+
 
 @app.route("/api/brands")
 def api_brands():
