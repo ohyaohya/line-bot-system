@@ -22,7 +22,7 @@ GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 GEOCODING_API_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 TAIPEI_POLICE_API_URL = "https://data.taipei/api/v1/dataset/a90ae184-c39e-4242-b2d6-d7a0403c0632?scope=resourceAquire"
 
-TAIPEI_BUILD_LIMIT = 50  # None = 不限制筆數
+TAIPEI_BUILD_LIMIT = None  # None = 不限制筆數
 
 # ---------------------------
 # 公用函式
@@ -102,23 +102,31 @@ def geocode(address: str):
     save_cache()
     return coords
 
-# ---------------------------
-# 品牌偵測
-# ---------------------------
 def detect_brand(company: str) -> str:
-    if not company: return "其他"
+    """更準確的品牌偵測"""
+    if not company:
+        return "其他"
+
     c = normalize_text(company.replace("股份有限公司", ""))
-    if any(k in c for k in ["統一超商", "7-eleven", "7-11", "7－11", "7_11", "7eleven", "seven"]):
-        return "7-ELEVEN"
-    if "全家" in c:
-        return "全家"
-    if "全聯" in c:
-        return "全聯"
-    if "萊爾富" in c or "hi-life" in c or "hilife" in c:
-        return "萊爾富"
-    if "來來" in c:
-        return "來來"
-    return "其他"
+
+    # 避免誤判，先判斷最特殊的
+    if "統一超商" in c or "7-eleven" in c or "7_11" in c or "7－11" in c or "7-11" in c:
+        brand = "7-ELEVEN"
+    elif "全家便利商店" in c or "全家" in c:
+        brand = "全家"
+    elif "全聯福利中心" in c or ("全聯" in c and "超商" not in c):
+        brand = "全聯"
+    elif "萊爾富" in c or "hi-life" in c or "hilife" in c:
+        brand = "萊爾富"
+    elif "ok便利" in c or "okmart" in c or "ok" in c:
+        brand = "OK便利店"
+    else:
+        brand = "其他"
+
+    print(f"✅ 偵測品牌: {company} → {brand}")
+    return brand
+
+
 
 # ---------------------------
 # 台北便利商店建構
@@ -223,7 +231,12 @@ def api_nearby():
     elif tp == "store":
         print("🏪 查詢便利商店資料中...")
         for it in TAIPEI_STORES:
-            if brand_filter and brand_filter != "全部" and it["brand"] != brand_filter: continue
+        # 新增除錯輸出
+            if brand_filter and brand_filter != "全部":
+              print(f"🔎 比對品牌: {it['brand']} vs {brand_filter}")
+            if normalize_text(it["brand"]) != normalize_text(brand_filter):
+                continue
+
             dist = get_distance(lat, lng, it["lat"], it["lng"])
             if dist > 30: continue
             results.append({"brand": it["brand"], "name": it["name"], "address": it["address"], "lat": it["lat"], "lng": it["lng"], "distance": round(dist, 2)})
