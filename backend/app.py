@@ -243,6 +243,15 @@ def api_nearby():
                 "lat": it["lat"], "lng": it["lng"], "distance": round(dist, 2)
             })
     results.sort(key=lambda x: x["distance"])
+    if not results:
+     print("⚠️ 找不到符合條件的店，改回傳最近台北市店舖（保底）")
+    fallback = []
+    for it in TAIPEI_STORES:
+        dist = get_distance(lat, lng, it["lat"], it["lng"])
+        it["distance"] = round(dist, 2)
+        fallback.append(it)
+    fallback.sort(key=lambda x: x["distance"])
+    results = fallback[:10]
     return jsonify(results[:limit])
 
 @app.route("/api/brands")
