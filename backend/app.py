@@ -9,7 +9,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-PUBLIC_DIR = "public"
+PUBLIC_DIR = os.path.join(os.path.dirname(__file__), "public")
 DATA_DIR = os.path.join(PUBLIC_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -21,7 +21,7 @@ GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 GEOCODING_API_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 TAIPEI_POLICE_API_URL = "https://data.taipei/api/v1/dataset/a90ae184-c39e-4242-b2d6-d7a0403c0632?scope=resourceAquire"
 
-TAIPEI_BUILD_LIMIT = None  # None = 不限制筆數
+TAIPEI_BUILD_LIMIT = 50  # None = 不限制筆數
 
 # ---------------------------
 # 公用函式
@@ -158,6 +158,8 @@ def ensure_taipei_stores():
         writer = csv.DictWriter(f, fieldnames=["brand", "name", "address", "lat", "lng"])
         writer.writeheader()
         writer.writerows(out_rows)
+        print(f"🧾 嘗試寫入檔案位置：{os.path.abspath(STORES_TAIPEI_CSV)}")
+
 
     print(f"✅ 台北市便利商店完成：{len(out_rows)} 筆 → {STORES_TAIPEI_CSV}")
     return {"ok": True, "count": len(out_rows)}
