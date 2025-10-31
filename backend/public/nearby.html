@@ -41,7 +41,7 @@
           <option value="全家">全家</option>
           <option value="全聯">全聯</option>
           <option value="萊爾富">萊爾富</option>
-          <option value="來來">來來</option>
+          <option value="OK便利店">OK便利店</option>
         </select>
         <button id="searchStore" class="btn btn-success" style="flex:1">找便利商店</button>
         <button id="searchPolice" class="btn btn-primary" style="flex:1">找警察局</button>
@@ -58,7 +58,6 @@
   </div>
 
   <script>
-    // Render 版：固定後端主機
     const BACKEND = "https://line-bot-system.onrender.com";
     let GOOGLE_KEY = "", MAP, MARKERS = [], CURRENT_RESULTS = [], MAP_LOADED = false, CURRENT_POS = null, CURRENT_MODE = "list";
 
@@ -67,7 +66,7 @@
       "全家": "#1E90FF",
       "全聯": "#800080",
       "萊爾富": "#FF4500",
-      "來來": "#FF8C00",
+      "OK便利店": "#FF1493",
       "警察局": "#0d6efd",
       "其他": "#6b7280"
     };
@@ -80,13 +79,13 @@
 
     function staticMap(lat, lng, color = "red", size = "300x200", zoom = 16) {
       return `https://maps.googleapis.com/maps/api/staticmap`
-             + `?center=${lat},${lng}`
-             + `&zoom=${zoom}`
-             + `&size=${size}`
-             + `&scale=2`
-             + `&maptype=roadmap`
-             + `&markers=color:${encodeURIComponent(color)}%7C${lat},${lng}`
-             + `&key=${GOOGLE_KEY}`;
+           + `?center=${lat},${lng}`
+           + `&zoom=${zoom}`
+           + `&size=${size}`
+           + `&scale=2`
+           + `&maptype=roadmap`
+           + `&markers=color:${encodeURIComponent(color)}%7C${lat},${lng}`
+           + `&key=${GOOGLE_KEY}`;
     }
 
     function getGeolocation() {
@@ -114,13 +113,14 @@
       const status = document.getElementById("status");
       status.textContent = "📍 定位中...";
       document.getElementById("results").innerHTML = "";
-      const brand = document.getElementById("brandSelect").value;
+      const brand = document.getElementById("brandSelect").value.trim();
 
       try {
         const pos = await getGeolocation();
         CURRENT_POS = pos;
         status.textContent = "🔍 搜尋中...";
         const url = `${BACKEND}/api/nearby?lat=${pos.lat}&lng=${pos.lng}&type=${type}&brand=${encodeURIComponent(brand)}&limit=10`;
+        console.log("📡 查詢 URL:", url);
         const r = await fetch(url);
         const data = await r.json();
         CURRENT_RESULTS = data;
