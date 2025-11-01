@@ -40,10 +40,17 @@ def get_distance(lat1, lon1, lat2, lon2):
         return float("inf")
 
 def normalize_text(t: str) -> str:
-    """全形轉半形 + 去空白"""
-    if not t: return ""
-    t = ''.join(chr(ord(c) - 0xFEE0) if 0xFF01 <= ord(c) <= 0xFF5E else c for c in t)
-    return t.replace(" ", "").replace("　", "").lower()
+    """全形轉半形 + 去空白 + 小寫"""
+    if not t:
+        return ""
+    # 把全形字轉成半形
+    t = ''.join(
+        chr(ord(c) - 0xFEE0) if 0xFF01 <= ord(c) <= 0xFF5E else c
+        for c in t
+    )
+    # 去除所有空白、轉成小寫
+    t = t.replace(" ", "").replace("　", "").lower()
+    return t
 
 # ---------------------------
 # Geocoding 快取
@@ -128,25 +135,31 @@ def detect_brand(company: str) -> str:
 
 
 
-# ---------------------------
-# 台北便利商店建構
-# ---------------------------
 def ensure_taipei_stores():
     if not os.path.exists(STORES_CSV):
         print("⚠️ 找不到 stores.csv，無法重建")
         return {"ok": False}
+
     rows = []
     with open(STORES_CSV, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             addr = (row.get("分公司地址") or "").strip()
-            name = (row.get("分公司名稱") or row.get("公司名稱") or "").strip()
             company = (row.get("公司名稱") or "").strip()
+            name = (row.get("分公司名稱") or "").strip()
+
+            # 只抓台北市
             if ("台北市" in addr) or ("臺北市" in addr):
                 brand = detect_brand(company) or detect_brand(name)
-                rows.append({"brand": brand, "name": name, "address": addr})
+                print(f"✅ 偵測品牌: {company} / {name} → {brand}")
+                rows.append({
+                    "brand": brand,
+                    "name": name or company,
+                    "address": addr
+                })
 
     print(f"🔎 台北市便利商店原始筆數：{len(rows)}")
+
     out_rows = []
     limit = len(rows) if not TAIPEI_BUILD_LIMIT else min(TAIPEI_BUILD_LIMIT, len(rows))
     for r in rows[:limit]:
@@ -164,10 +177,10 @@ def ensure_taipei_stores():
         writer = csv.DictWriter(f, fieldnames=["brand", "name", "address", "lat", "lng"])
         writer.writeheader()
         writer.writerows(out_rows)
-        print(f"🧾 嘗試寫入檔案位置：{os.path.abspath(STORES_TAIPEI_CSV)}")
 
     print(f"✅ 台北市便利商店完成：{len(out_rows)} 筆 → {STORES_TAIPEI_CSV}")
     return {"ok": True, "count": len(out_rows)}
+
 
 def load_taipei_stores():
     if not os.path.exists(STORES_TAIPEI_CSV):
@@ -215,7 +228,7 @@ def api_nearby():
     lat = request.args.get("lat")
     lng = request.args.get("lng")
     tp = (request.args.get("type") or "").strip().lower()
-    brand_filter = normalize_text(request.args.get("brand", ""))  # ✅ 標準化品牌名稱
+    brand_filter = request.args.get("brand", "")
     limit = int(request.args.get("limit", 10))
 
     results = []
@@ -240,22 +253,23 @@ def api_nearby():
             })
 
     elif tp == "store":
-        print("🏪 查詢便利商店資料中...")
+        print(f"🏪 查詢便利商店資料中... (品牌篩選：{brand_filter})")
+        match_count = 0
         for it in TAIPEI_STORES:
-            # 標準化品牌名稱，避免全形／大小寫問題
-            b = normalize_text(it["brand"])
+            # 比對品牌（用 normalize_text 確保一致）
+            brand1 = normalize_text(it["brand"])
+            brand2 = normalize_text(brand_filter)
+            print(f"🔎 比對品牌: {it['brand']} vs {brand_filter}", end=" ")
 
-            # 限定品牌
-            if brand_filter and brand_filter != "全部":
-                if b != brand_filter:
-                    print(f"🔎 比對品牌: {it['brand']} vs {brand_filter} ❌")
-                    continue
-                else:
-                    print(f"✅ 比對品牌: {it['brand']} vs {brand_filter} ✅")
+            if brand_filter and brand_filter != "全部" and brand1 != brand2:
+                print("❌")
+                continue
+            print("✅")
 
             dist = get_distance(lat, lng, it["lat"], it["lng"])
             if dist > 30:
                 continue
+
             results.append({
                 "brand": it["brand"],
                 "name": it["name"],
@@ -264,7 +278,12 @@ def api_nearby():
                 "lng": it["lng"],
                 "distance": round(dist, 2)
             })
+            match_count += 1
+
+        print(f"🧮 篩選後共 {match_count} 筆符合 {brand_filter}")
+
     else:
+        print(f"⚠️ 未知的 type 參數：{tp}")
         return jsonify({"error": "未知的 type 類別，請使用 'store' 或 'police'"})
 
     # --- 結果排序 + 保底處理 ---
@@ -280,6 +299,8 @@ def api_nearby():
         results = fallback[:10]
 
     return jsonify(results[:limit])
+
+
 
 
 @app.route("/api/brands")
